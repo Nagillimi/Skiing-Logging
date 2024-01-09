@@ -1,19 +1,22 @@
+from datetime import date, time
+
 class Track:
     def __init__(
             self,
-            type,
-            date,
-            tod,
-            duration,
-            length,
-            time,
-            dist,
-            vel,
-            course,
-            alt,
-            lat,
-            long,
-            acc):
+            type: str,
+            date: date,
+            tod: time,
+            duration: int,
+            length: int,
+            time: list[int],
+            dist: list[float],
+            vel: list[float],
+            course: list[float],
+            alt: list[float],
+            lat: list[float],
+            long: list[float],
+            acc: list[int]
+    ):
         # props
         self.type = type
         self.date = date

@@ -117,4 +117,6 @@ def decode_tile(file):
         mz=[int(m) for m in csv.iloc[:, 9].tolist()],
         pres=[float(p) for p in csv.iloc[:, 10].tolist()],
         temp=[float(t) for t in csv.iloc[:, 11].tolist()],
-        hum=[float(h) for h in csv.iloc[:, 12].tolist()])
+        hum=[float(h) for h in csv.iloc[:, 12].tolist()],
+        alt=[] # not computed here to avoid confusion with raw_alt() method
+    )

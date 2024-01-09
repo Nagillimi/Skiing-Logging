@@ -8,3 +8,4 @@
 *.fit
 *.gpx
 *.DS_Store
+__pycache__
