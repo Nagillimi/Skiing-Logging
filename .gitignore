@@ -7,5 +7,7 @@
 *.xlsx
 *.fit
 *.gpx
+*.tcx
 *.DS_Store
+*.zip
 __pycache__

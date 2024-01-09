@@ -11,11 +11,11 @@ class Track:
             time: list[int],
             dist: list[float],
             vel: list[float],
-            course: list[float],
             alt: list[float],
             lat: list[float],
             long: list[float],
-            acc: list[int]
+            var: list[int] = [],
+            course: list[float] = []
     ):
         # props
         self.type = type
@@ -28,11 +28,11 @@ class Track:
         self.time = time
         self.dist = dist
         self.vel = vel
-        self.course = course
         self.alt = alt
         self.lat = lat
         self.long = long
-        self.acc = acc
+        self.var = var
+        self.course = course
 
     def __printProps__(self):
         print(

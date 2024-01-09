@@ -5,7 +5,7 @@ from datetime import datetime
 
 def decode_A50(file, printProps=False):
     csv = pd.read_csv(file)
-    l = csv.loc[csv['SkiApp PRO 2.3.10 - Available in Google PlayStore'].isnull()].isnull().index.to_list()
+    l = csv.loc[csv.iloc[:, 0].isnull()].index.to_list()
     nan_indices = [0] + l + [csv.shape[0]]
     tracks = []
 
@@ -23,14 +23,14 @@ def decode_A50(file, printProps=False):
         length = int(durlength.split("Length=")[1].replace('m', ''))
 
         vectors = track.iloc[2:, :]
-        time = [int(t) + _datetime.timestamp() for t in vectors.iloc[:, 0].tolist()]
+        time = [int(float(t)) + int(_datetime.timestamp()) for t in vectors.iloc[:, 0].tolist()]
         dist = [float(d) for d in vectors.iloc[:, 1].tolist()]
         vel = [float(v) / 3.6 for v in vectors.iloc[:, 2].tolist()] # originally in kmh
         course = [int(c) for c in vectors.iloc[:, 3].tolist()]
         alt = [float(a) for a in vectors.iloc[:, 4].tolist()]
         lat = [float(l) for l in vectors.iloc[:, 5].tolist()]
         long = [float(l) for l in vectors.iloc[:, 6].tolist()]
-        acc = [int(a) for a in vectors.iloc[:, 7].tolist()]
+        var = [int(a) for a in vectors.iloc[:, 7].tolist()]
 
         trackObj = Track(
             type=type,
@@ -41,11 +41,11 @@ def decode_A50(file, printProps=False):
             time=time,
             dist=dist,
             vel=vel,
-            course=course,
             alt=alt,
             lat=lat,
             long=long,
-            acc=acc
+            var=var,
+            course=course
         )
         if printProps: trackObj.__printProps__()
         tracks.append(trackObj)
@@ -56,7 +56,7 @@ def decode_A50_downhill(file, printProps=False):
     return [track for track in tracks if track.type == "Downhill"]
 
 def decode_F6P(file, printProps=False):
-    ts_offset = 631065600 # Special Garmin constant... https://stackoverflow.com/a/57836047
+    ts_msb = 631065600 # Add MSB since this is the LSB of the ts https://stackoverflow.com/a/57836047
     csv = pd.read_csv(file, low_memory=False) # no low memory due to columns having data with nonintersecting types
     lap_rows = csv.loc[csv['Message'] == 'lap'].loc[csv['Type'] == 'Data']
     lap_indices = [0] + lap_rows.index.tolist()
@@ -66,20 +66,18 @@ def decode_F6P(file, printProps=False):
     for n in range(len(lap_indices) - 1):
         track = csv.iloc[lap_indices[n]:lap_indices[n + 1]].loc[csv['Message'] == 'record'].loc[csv['Type'] == 'Data']
         start_ts = int(lap_rows.iloc[n, 7])
-        _datetime = datetime.fromtimestamp(start_ts + ts_offset)
+        _datetime = datetime.fromtimestamp(start_ts + ts_msb)
         date = _datetime.date()
         tod = _datetime.time()
         duration = int(lap_rows.iloc[n, 25])
         length = float(lap_rows.iloc[n, 28])
 
-        time = [int(t) - 1 + ts_offset for t in track.iloc[:, 4].tolist()]
+        time = [int(t) + ts_msb for t in track.iloc[:, 4].tolist()]
         dist = [float(d) - total_dist for d in track.iloc[:, 13].tolist()] # since this is accumulating distance
         vel = [float(v) for v in track.iloc[:, 16].tolist()]
-        course = []
         alt = [float(a) for a in track.iloc[:, 19].tolist()]
         lat = [float(l) * 180 / (2**31) for l in track.iloc[:, 7].tolist()] # convert from sc to deg
         long = [float(l) * 180 / (2**31) for l in track.iloc[:, 10].tolist()] # convert from sc to deg
-        acc = []
 
         trackObj = Track(
             type="Downhill",
@@ -90,11 +88,9 @@ def decode_F6P(file, printProps=False):
             time=time,
             dist=dist,
             vel=vel,
-            course=course,
             alt=alt,
             lat=lat,
-            long=long,
-            acc=acc
+            long=long
         )
         if printProps: trackObj.__printProps__()
         tracks.append(trackObj)
