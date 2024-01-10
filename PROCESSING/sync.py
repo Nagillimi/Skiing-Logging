@@ -9,6 +9,7 @@ def syncTile(
         tile: Tile,
         truth: [Track],
         printOutput=False,
+        printProgress=False,
         use_mae=True,
         time_step_s=0.1,
         max_time_search_s=30,
@@ -56,7 +57,7 @@ def syncTile(
 
         # iterate (convert since tile time is in ms & publishing at 100Hz)
         tile_ts_search += int(time_step_s * 1000)
-        if printOutput:
+        if printProgress:
             progress = round(100 * (i + 1) / (max_time_search_s + 1))
             print(progress, '%', sep="")
     
@@ -117,7 +118,7 @@ def splitTileIntoDownhillTracks(
 
         start_avg = round(start_avg / len(ts_splits_f6p))
         stop_avg = round(stop_avg / len(ts_splits_f6p))
-        if print:
+        if printOutput:
             print("Avgerage starting and stopping indices:")
             print(start_avg)
             print(stop_avg)
@@ -128,6 +129,7 @@ def splitTileIntoDownhillTracks(
     # get the start&stop timestamps for every f6p run
     ts_splits = [[track.time[0] - start_avg, track.time[-1] + stop_avg] for track in f6p]
 
+    print(ts_splits)
     # get indices in tile_sync that match these timestamps
     tile_start_idxs = [tile_sync.time.index(split[0]) for split in ts_splits]
     tile_stop_idxs = [tile_sync.time.index(split[1]) for split in ts_splits]
