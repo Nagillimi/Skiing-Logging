@@ -30,3 +30,9 @@ class Tile:
     # will still need to account for (relatively constant) weather offsets!
     def raw_alt(self):
         return [44307.694 * (1 - (p / 1013.25)**0.190284) for p in self.pres]
+    
+    def imu6dof(self):
+        pass
+
+    def imu9dof(self):
+        pass
