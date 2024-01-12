@@ -33,15 +33,15 @@ Data was captured for 6 days of skiing, spread across 2 years and 4 hills/resort
 
 General process was using notebooks as the background & testing, while finishing up with a function for reuse. Material covered here includes:
 
-[x] - create a common track object containing common props between all devices
-[x] - compare the ground truth files
-[x] - parse individual data files for a50, f6p, & tile
-[x] - synchronize the tile data with mapped global timestamps
-  [x] - use the a50 ground truth here since an entire stitched dataset exists & will be more accurate
-  [ ] - confirm altitude on runs with garmin f6p ground truth
-[x] - generate corrected altitude data for the tile mapped from ground truth
-[ ] - parse the tile data into tracks, focusing on the runs
-  [ ] - use the garmin timestamps to split since it's a more holistic activity-based approach, plus it's the parent signal you'll be pairing with in the end. Don't see a benefit in recognizing "Hold", "Walk", & "Lift" track types with the tile data.
+- [x] create a common track object containing common props between all devices
+- [x] compare the ground truth files
+- [x] parse individual data files for a50, f6p, & tile
+- [x] synchronize the tile data with mapped global timestamps
+  - [x] use the a50 ground truth here since an entire stitched dataset exists & will be more accurate
+  - [ ] confirm altitude on runs with garmin f6p ground truth
+- [x] generate corrected altitude data for the tile mapped from ground truth
+- [ ] parse the tile data into tracks, focusing on the runs
+  - [ ] use the garmin timestamps to split since it's a more holistic activity-based approach, plus it's the parent signal you'll be pairing with in the end. Don't see a benefit in recognizing "Hold", "Walk", & "Lift" track types with the tile data.
 
 After these steps, you'll have synchronized signals from each device, which are split into tracks for distinguishing the run data.
 
