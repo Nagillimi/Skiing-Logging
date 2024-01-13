@@ -38,11 +38,29 @@ General process was using notebooks as the background & testing, while finishing
 - [x] parse individual data files for a50, f6p, & tile
 - [x] synchronize the tile data with mapped global timestamps
   - [x] use the a50 ground truth here since an entire stitched dataset exists & will be more accurate
-  - [ ] confirm altitude on runs with garmin f6p ground truth
+  - [x] confirm altitude on runs with garmin f6p ground truth
 - [x] generate corrected altitude data for the tile mapped from ground truth
-- [ ] parse the tile data into tracks, focusing on the runs
-  - [ ] use the garmin timestamps to split since it's a more holistic activity-based approach, plus it's the parent signal you'll be pairing with in the end. Don't see a benefit in recognizing "Hold", "Walk", & "Lift" track types with the tile data.
+- [x] parse the tile data into tracks, focusing on the runs
+  - [x] use the garmin timestamps to split since it's a more holistic activity-based approach, plus it's the parent signal you'll be pairing with in the end. Don't see a benefit in recognizing "Hold", "Walk", & "Lift" track types with the tile data. This doesn't work with the older F35 garmin ground truth, which didn't track altitude data.
 
 After these steps, you'll have synchronized signals from each device, which are split into tracks for distinguishing the run data.
 
+### Validation
+
+Not much data crosses over between devices, however we can integrate the 3dof acceleration from the tile and compare it to the a50 & f6p velocities and possibly distance. Note that distance from the other devices is 3d and includes innacuracies in gps position and altitude (baro or mapped).
+
+- [ ] internal integration method to calculate tile velocity (& distance maybe)
+
 ### SensorTile Algorithms
+
+Since the estimations explored here will have no ground truths to compare with, this is all in the exploratory phase and will need further testing. Realtime (haptic?) feedback could be designed for the next stage which could provide results while the activity is tracking, ex: vibrate an external wearable on a recognized turn while going downhill.
+
+Added features are aimed to be as low powered as possible, focus on obtaining results from:
+
+- low sampling
+- low processing, memory & cpu usage
+- least amount of signals/hardware to include
+
+But, for startes a full 6dof and 9dof orientation will be implemented- hopefully leading to correlations in raw signal patterns.
+
+- [ ] orientation algorithms for tile. Not aimed to be in the full wearable, so use a library.
