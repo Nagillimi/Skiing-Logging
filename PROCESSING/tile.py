@@ -1,3 +1,5 @@
+from signal_processing import lowpass
+
 class Tile:
     def __init__(
             self,
@@ -25,12 +27,30 @@ class Tile:
         self.hum = hum
         self.alt = alt
 
-    # converts the pressure data in mB to altitude in m, using:
-    # https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf
-    # will still need to account for (relatively constant) weather offsets!
+    @property
     def raw_alt(self):
+        '''converts the pressure data in mB to altitude in m, using:
+        https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf
+
+        Will still need to account for (relatively constant) weather offsets!
+        '''
         return [44307.694 * (1 - (p / 1013.25)**0.190284) for p in self.pres]
     
+    @property
+    def ax_lpf(self):
+        '''5/100 Hz/Hz Lowpass filtered accelerometer data for x'''
+        return lowpass(self.ax, fc=5, fs=100)
+
+    @property
+    def ay_lpf(self):
+        '''5/100 Hz/Hz Lowpass filtered accelerometer data for y'''
+        return lowpass(self.ay, fc=5, fs=100)
+
+    @property
+    def az_lpf(self):
+        '''5/100 Hz/Hz Lowpass filtered accelerometer data for z'''
+        return lowpass(self.az, fc=5, fs=100)      
+
     def imu6dof(self):
         pass
 

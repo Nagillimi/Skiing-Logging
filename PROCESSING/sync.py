@@ -17,7 +17,7 @@ def syncTile(
         alt_step=0.1,
         min_alt_start=0,
         max_alt_search=75):
-    tile_alt = tile.raw_alt()
+    tile_alt = tile.raw_alt
     stitched_a50_time, stitched_a50_alt = stitch(truth)
 
     # 2. find the optimal time and altitude offsets
