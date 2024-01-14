@@ -1,5 +1,6 @@
 from track import Track
 from tile import Tile
+from stitch import stitch
 
 ### synchronizes the tile signals with the stitched a50 tracks
 ### using the altitude as a ground truth
@@ -17,19 +18,11 @@ def syncTile(
         min_alt_start=0,
         max_alt_search=75):
     tile_alt = tile.raw_alt()
-    
-    # 1. stich the a50 tracks
-    stitched_a50_time = []
-    stitched_a50_alt = []
-    for track in truth:
-        stitched_a50_time += track.time
-        stitched_a50_alt += track.alt
+    stitched_a50_time, stitched_a50_alt = stitch(truth)
 
     # 2. find the optimal time and altitude offsets
-    corrected_tile_time = []
-    corrected_tile_alt = []
-    shift_h_tile = []
-    shift_v_tile = []
+    corrected_tile_time = []; corrected_tile_alt = []
+    shift_h_tile = []; shift_v_tile = []
     collection = []
     tile_ts_search = 0
     for i in range(max_time_search_s):
