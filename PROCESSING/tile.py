@@ -1,4 +1,4 @@
-from signal_processing import lowpass
+from signal_processing import length, lowpass
 
 class Tile:
     def __init__(
@@ -50,6 +50,11 @@ class Tile:
     def az_lpf(self):
         '''5/100 Hz/Hz Lowpass filtered accelerometer data for z'''
         return lowpass(self.az, fc=5, fs=100)      
+
+    @property
+    def mG_lpf(self):
+        '''15/100 Hz/Hz Lowpass filtered G-forces'''
+        return lowpass(length(self.ax_lpf, self.ay_lpf, self.az_lpf), fc=15, fs=100)      
 
     def imu6dof(self):
         pass
