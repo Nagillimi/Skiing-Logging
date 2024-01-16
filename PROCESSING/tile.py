@@ -52,8 +52,18 @@ class Tile:
         return lowpass(self.az, fc=5, fs=100)      
 
     @property
+    def gyro(self):
+        '''Unfiltered Gyroscope (3D gyroscopic vector magnitude)'''
+        return length(self.gx, self.gy, self.gz)      
+
+    @property
+    def mG(self):
+        '''Unfiltered mG-forces (3D accelerometer vector magnitude)'''
+        return length(self.ax, self.ay, self.az)      
+
+    @property
     def mG_lpf(self):
-        '''15/100 Hz/Hz Lowpass filtered G-forces'''
+        '''15/100 Hz/Hz Lowpass filtered mG-forces'''
         return lowpass(length(self.ax_lpf, self.ay_lpf, self.az_lpf), fc=15, fs=100)      
 
     def imu6dof(self):

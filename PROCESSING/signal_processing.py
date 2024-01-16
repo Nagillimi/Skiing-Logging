@@ -25,5 +25,5 @@ def lowpass(x, fc, fs=100):
         lpf.append(lpfi)
     return lpf
 
-def indicesUnderTH(mgs, th=200):
-    return [i for i, mg in enumerate(mgs) if mg < th]
+def idxsUnderTH(x, th=200):
+    return [x.index(xi) for xi in x if xi < th]
