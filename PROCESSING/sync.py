@@ -85,7 +85,8 @@ def syncTile(
         pres = tile.pres,
         temp = tile.temp,
         hum = tile.hum,
-        alt=corrected_tile_alt
+        corrected_alt=corrected_tile_alt,
+        identifyKinematics=False # don't run the kinematic id until the tracks are split
     )
 
 # Splits the tile data into an array of Tile representing the downhill tracks only.
@@ -145,7 +146,7 @@ def splitTileIntoDownhillTracks(
                 pres=tile_sync.pres[tile_start_idxs[i]:tile_stop_idxs[i]],
                 temp=tile_sync.temp[tile_start_idxs[i]:tile_stop_idxs[i]],
                 hum=tile_sync.hum[tile_start_idxs[i]:tile_stop_idxs[i]],
-                alt=tile_sync.corrected_alt[tile_start_idxs[i]:tile_stop_idxs[i]]
+                corrected_alt=tile_sync.corrected_alt[tile_start_idxs[i]:tile_stop_idxs[i]]
             )
         )
     return tile_runs

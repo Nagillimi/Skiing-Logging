@@ -51,9 +51,11 @@ def decode_A50(file, printProps=False):
         tracks.append(trackObj)
     return tracks
 
+
 def decode_A50_downhill(file, printProps=False):
     tracks = decode_A50(file, printProps)
     return [track for track in tracks if track.type == "Downhill"]
+
 
 def decode_F6P(file, printProps=False):
     ts_msb = 631065600 # Add MSB since this is the LSB of the ts https://stackoverflow.com/a/57836047
@@ -98,6 +100,7 @@ def decode_F6P(file, printProps=False):
         total_dist += length
     return tracks
 
+
 def decode_tile(file):
     csv = pd.read_csv(file)
     return Tile(
@@ -114,5 +117,6 @@ def decode_tile(file):
         pres=[float(p) for p in csv.iloc[:, 10].tolist()],
         temp=[float(t) for t in csv.iloc[:, 11].tolist()],
         hum=[float(h) for h in csv.iloc[:, 12].tolist()],
-        alt=[] # not computed here to avoid confusion with raw_alt() method
+        corrected_alt=[], # not computed here to avoid confusion with raw_alt() method
+        identifyKinematics=False # don't run the kinematic id until the tracks are split
     )

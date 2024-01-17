@@ -1,5 +1,5 @@
-from PROCESSING.jump import Jump
-from PROCESSING.signal_processing import length
+from jump import Jump
+from signal_processing import length
 from track import Track
 from tile import Tile
 import matplotlib.pyplot as plt

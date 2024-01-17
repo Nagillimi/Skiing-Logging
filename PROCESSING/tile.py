@@ -1,4 +1,4 @@
-from PROCESSING.jump import Jump
+from jump import Jump
 from signal_processing import identifyRangesBelowTH, length, lowpass
 
 class Tile:
@@ -11,7 +11,8 @@ class Tile:
             pres: list[float],
             temp: list[float],
             hum: list[float],
-            alt: list[float],
+            corrected_alt: list[float],
+            identifyKinematics=True
     ):
         self.time = time
         self.ax = ax
@@ -26,7 +27,9 @@ class Tile:
         self.pres = pres
         self.temp = temp
         self.hum = hum
-        self.corrected_alt = alt
+        self.corrected_alt = corrected_alt
+        if not identifyKinematics:
+            return
         self.identifyJumps()
         self.identifyTurns()
 

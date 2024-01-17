@@ -87,10 +87,12 @@ class Jump(JumpTests):
         self.min_index = minIndex(self.mG_lpf, self.lowG_range)
         if print_out: print('min_index:\t\t', self.min_index)
 
+        # TODO confirm jump alignment
+
         self.computeAirRange(print_out=print_out)
         self.computeLandingRange(print_out=print_out)
 
-        # TODO: methods for determining air time and distance
+        # TODO methods for determining air time and distance
 
         self.test(print_out=print_out)
     
