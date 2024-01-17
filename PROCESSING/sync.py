@@ -145,7 +145,7 @@ def splitTileIntoDownhillTracks(
                 pres=tile_sync.pres[tile_start_idxs[i]:tile_stop_idxs[i]],
                 temp=tile_sync.temp[tile_start_idxs[i]:tile_stop_idxs[i]],
                 hum=tile_sync.hum[tile_start_idxs[i]:tile_stop_idxs[i]],
-                alt=tile_sync.alt[tile_start_idxs[i]:tile_stop_idxs[i]]
+                alt=tile_sync.corrected_alt[tile_start_idxs[i]:tile_stop_idxs[i]]
             )
         )
     return tile_runs

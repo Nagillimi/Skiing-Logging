@@ -1,4 +1,5 @@
-from signal_processing import length, lowpass
+from PROCESSING.jump import Jump
+from signal_processing import identifyRangesBelowTH, length, lowpass
 
 class Tile:
     def __init__(
@@ -25,49 +26,71 @@ class Tile:
         self.pres = pres
         self.temp = temp
         self.hum = hum
-        self.alt = alt
+        self.corrected_alt = alt
+        self.identifyJumps()
+        self.identifyTurns()
+
 
     @property
     def raw_alt(self):
-        '''converts the pressure data in mB to altitude in m, using:
-        https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf
+        """Converts the pressure data in mB to altitude in m, using:
+        https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf.
 
         Will still need to account for (relatively constant) weather offsets!
-        '''
+        """
         return [44307.694 * (1 - (p / 1013.25)**0.190284) for p in self.pres]
-    
+
+
     @property
     def ax_lpf(self):
-        '''5/100 Hz/Hz Lowpass filtered accelerometer data for x'''
+        """5/100 Hz/Hz Lowpass filtered accelerometer data for x"""
         return lowpass(self.ax, fc=5, fs=100)
+
 
     @property
     def ay_lpf(self):
-        '''5/100 Hz/Hz Lowpass filtered accelerometer data for y'''
+        """5/100 Hz/Hz Lowpass filtered accelerometer data for y"""
         return lowpass(self.ay, fc=5, fs=100)
+
 
     @property
     def az_lpf(self):
-        '''5/100 Hz/Hz Lowpass filtered accelerometer data for z'''
+        """5/100 Hz/Hz Lowpass filtered accelerometer data for z"""
         return lowpass(self.az, fc=5, fs=100)      
+
 
     @property
     def gyro(self):
-        '''Unfiltered Gyroscope (3D gyroscopic vector magnitude)'''
+        """Unfiltered Gyroscope (3D gyroscopic vector magnitude)"""
         return length(self.gx, self.gy, self.gz)      
+
 
     @property
     def mG(self):
-        '''Unfiltered mG-forces (3D accelerometer vector magnitude)'''
+        """Unfiltered mG-forces (3D accelerometer vector magnitude)"""
         return length(self.ax, self.ay, self.az)      
+
 
     @property
     def mG_lpf(self):
-        '''15/100 Hz/Hz Lowpass filtered mG-forces'''
+        """15/100 Hz/Hz Lowpass filtered mG-forces"""
         return lowpass(length(self.ax_lpf, self.ay_lpf, self.az_lpf), fc=15, fs=100)      
 
-    def imu6dof(self):
-        pass
 
-    def imu9dof(self):
-        pass
+    def identifyJumps(self):
+        """Identify all points of low G-force and run the jump id pipeline on each.
+        
+        Confidence values will be associated with each `Jump` instance.
+        """
+        lowG_els = identifyRangesBelowTH(self.mG_lpf, Jump.mgThreshold())
+        self.jumps = [Jump(r, self.mG_lpf, self.mG, self.gyro) for r in range(len(lowG_els))]
+
+    
+    def identifyTurns(self): pass
+
+
+    def imu6dof(self): pass
+        
+
+    def imu9dof(self): pass
+

@@ -1,3 +1,5 @@
+from PROCESSING.jump import Jump
+from PROCESSING.signal_processing import length
 from track import Track
 from tile import Tile
 import matplotlib.pyplot as plt
@@ -34,10 +36,11 @@ def plot_a50_f6p(a: Track, f: Track):
     plt.show()
     return fig
 
+
 def plotAltAcc(track: Tile, ax=None, ay=None, az=None):
     plt.rc('lines', linewidth=1)
-    _, _ax = plt.subplots(4, sharex=True, layout="constrained", figsize=(25, 15))
-    _ax[0].plot(track.time, track.alt, label='Altitude')
+    fig, _ax = plt.subplots(4, sharex=True, layout="constrained", figsize=(25, 15))
+    _ax[0].plot(track.time, track.corrected_alt, label='Altitude')
     _ax[0].set_title('Tile Altitude', wrap=True)
 
     if ax is None: _ax[1].plot(track.time, track.ax, label='Ax')
@@ -53,11 +56,13 @@ def plotAltAcc(track: Tile, ax=None, ay=None, az=None):
     _ax[3].set_title('Tile Accelerometer Z', wrap=True)
 
     plt.show()
+    return fig
+
 
 def plotAltGyr(track: Tile):
     plt.rc('lines', linewidth=1)
-    _, ax = plt.subplots(4, sharex=True, layout="constrained", figsize=(25, 15))
-    ax[0].plot(track.time, track.alt, label='Altitude')
+    fig, ax = plt.subplots(4, sharex=True, layout="constrained", figsize=(25, 15))
+    ax[0].plot(track.time, track.corrected_alt, label='Altitude')
     ax[0].set_title('Tile Altitude', wrap=True)
 
     ax[1].plot(track.time, track.gx, label='Gx')
@@ -70,11 +75,13 @@ def plotAltGyr(track: Tile):
     ax[3].set_title('Tile Gyroscope Z', wrap=True)
 
     plt.show()
+    return fig
+
 
 def plotAltMag(track: Tile):
     plt.rc('lines', linewidth=1)
-    _, ax = plt.subplots(4, sharex=True, layout="constrained", figsize=(25, 15))
-    ax[0].plot(track.time, track.alt, label='Altitude')
+    fig, ax = plt.subplots(4, sharex=True, layout="constrained", figsize=(25, 15))
+    ax[0].plot(track.time, track.corrected_alt, label='Altitude')
     ax[0].set_title('Tile Altitude', wrap=True)
 
     ax[1].plot(track.time, track.mx, label='Mx')
@@ -87,3 +94,43 @@ def plotAltMag(track: Tile):
     ax[3].set_title('Tile Magnetometer Z', wrap=True)
 
     plt.show()
+    return fig
+
+
+def plotJumpAnalysis(track: Tile, kinematics):
+    min_i = kinematics[0]; air_r = kinematics[1]; landing_r = kinematics[2]
+    mg_raw = length(track.ax, track.ay, track.az)
+    mg_filt = track.mG_lpf
+    gyro = length(track.gx, track.gy, track.gz)
+
+    # plot indices
+    i1 = air_r[0]; i2 = landing_r[1]
+
+    # convert min idx into ts for x axis
+    min_t = track.time[min_i]
+
+    plt.rc('lines', linewidth=1)
+    fig, ax = plt.subplots(3, figsize=(8, 4))
+
+    ax[0].plot(track.time[i1:i2], mg_filt[i1:i2])
+    ax[0].plot(track.time[i1:i2], [Jump.mgThreshold() for _ in mg_filt[i1:i2]], 'k--')
+    ax[0].axvspan(track.time[air_r[0]], track.time[air_r[1]], color='green', alpha=0.5)
+    ax[0].axvline(x=min_t, ls=':', color='k')
+    ax[0].axvspan(track.time[landing_r[0]], track.time[landing_r[1]], color='red', alpha=0.5)
+    ax[0].set_title('Run 1 Tile Filtered mG-force (& threshold)', wrap=True)
+
+    ax[1].plot(track.time[i1:i2], mg_raw[i1:i2])
+    ax[1].axvspan(track.time[air_r[0]], track.time[air_r[1]], color='green', alpha=0.5)
+    ax[1].axvline(x=min_t, ls=':', color='k')
+    ax[1].axvspan(track.time[landing_r[0]], track.time[landing_r[1]], color='red', alpha=0.5)
+    ax[1].set_title('Run 1 Tile Unfiltered mG-force', wrap=True)
+
+    ax[2].plot(track.time[i1:i2], gyro[i1:i2])
+    ax[2].axvspan(track.time[air_r[0]], track.time[air_r[1]], color='green', alpha=0.5)
+    ax[2].axvline(x=min_t, ls=':', color='k')
+    ax[2].axvspan(track.time[landing_r[0]], track.time[landing_r[1]], color='red', alpha=0.5)
+    ax[2].set_title('Run 1 Tile Unfiltered Gyroscope', wrap=True)
+    
+    plt.tight_layout()
+    plt.show()
+    return fig
