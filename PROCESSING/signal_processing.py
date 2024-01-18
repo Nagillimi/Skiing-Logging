@@ -1,4 +1,17 @@
 import math
+from scipy import signal
+
+
+def arma(x, m=5):
+    """Autoregressive Moving-Average digital IIR filter, can be used LP, HP, and BP.
+    
+    https://en.wikibooks.org/wiki/Signal_Processing/Digital_Filters#ARMA_Filters
+    """
+
+
+def butter(x, m=2):
+    """"""
+
 
 def groupClosePointsIntoRanges(idxs, th=2):
     """Return list of ranges of sequential points grouped by closeness,
@@ -29,6 +42,64 @@ def idxsUnderTH(x, th=200):
     return [x.index(xi) for xi in x if xi < th]
 
 
+def length(ax, ay, az):
+    """Computes the vector length based on the `x`, `y`, `z` components"""
+    return [math.sqrt(ax[i]**2 + ay[i]**2 + az[i]**2) for i in range(len(ax))]
+
+
+def lowpass(x, Wn, ftype='iir1'):
+    """Lowpass filter input signal `x` by the cutoff frequency `Wn = fc / fs`."""
+
+    if ftype == 'iir1':
+        lpfi = x[0]
+        lpf = []
+        for xi in x: 
+            lpfi += Wn * (xi - lpfi)
+            lpf.append(lpfi)
+        return lpf
+    
+    elif ftype == 'butter2':
+        # b, a = signal.butter(2, Wn, 'low', output='ba')
+        # return signal.filtfilt(b, a, x).tolist()
+
+        # prefer 2nd order sections
+        sos = signal.butter(2, Wn, 'low', output='sos')
+        return signal.sosfiltfilt(sos, x).tolist()
+    
+    else:
+        return []
+
+
+def maxIndex(x, r):
+    """Population max index with of input signal `x`"""
+    if len(r) == 0:
+        return x.index(max(x))
+    if r[0] == r[1]:
+        return r[0]
+    window = x[r[0]:r[1]]
+    return r[0] + window.index(max(window))
+
+
+def mean(x):
+    """Population mean of the full range of input signal `x`"""
+    return sum(x) / len(x)
+
+
+def minIndex(x, r=[]):
+    """Population min index with of input signal `x`"""
+    if len(r) == 0:
+        return x.index(min(x))
+    if r[0] == r[1]:
+        return r[0]
+    window = x[r[0]:r[1]]
+    return r[0] + window.index(min(window))
+
+
+def std(x):
+    """Population standard deviation of the full range of input signal `x`"""
+    return math.sqrt(variance(x))
+
+
 def trapz(x, dt=0.01):
     """Computes the trapezoidal integration of the input signal `x`.
     
@@ -42,49 +113,6 @@ def trapz(x, dt=0.01):
             ((x[i + 1] - (x[i - 1] if i > 0 else 0)) / 2)
         ) * dt for i in range(len(x) - 1)
     ]
-
-
-def length(ax, ay, az):
-    """Computes the vector length based on the `x`, `y`, `z` components"""
-    return [math.sqrt(ax[i]**2 + ay[i]**2 + az[i]**2) for i in range(len(ax))]
-
-
-def lowpass(x, fc, fs=100):
-    """Lowpass filter input signal `x` by the cutoff frequency `fc`.
-    
-    Assume a sampling frequcny of 100Hz, otherwise override `fs`
-    """
-    delta_t = 1 / fs
-    lpfi = x[0]
-    lpf = []
-    for xi in x: 
-        lpfi += fc * (xi - lpfi) * delta_t
-        lpf.append(lpfi)
-    return lpf
-
-
-def maxIndex(x, r):
-    """Population max index with of input signal `x`"""
-    if r[0] == r[1]: return r[0]
-    window = x[r[0]:r[1]]
-    return r[0] + window.index(max(window))
-
-
-def mean(x):
-    """Population mean of the full range of input signal `x`"""
-    return sum(x) / len(x)
-
-
-def minIndex(x, r):
-    """Population min index with of input signal `x`"""
-    if r[0] == r[1]: return r[0]
-    window = x[r[0]:r[1]]
-    return r[0] + window.index(min(window))
-
-
-def std(x):
-    """Population standard deviation of the full range of input signal `x`"""
-    return math.sqrt(variance(x))
 
 
 def variance(x):

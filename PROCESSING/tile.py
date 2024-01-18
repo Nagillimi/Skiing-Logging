@@ -1,5 +1,7 @@
 from jump import Jump
 from signal_processing import identifyRangesBelowTH, length, lowpass
+import imufusion
+import numpy as np
 
 class Tile:
     def __init__(
@@ -45,24 +47,6 @@ class Tile:
 
 
     @property
-    def ax_lpf(self):
-        """5/100 Lowpass filtered accelerometer data for x"""
-        return lowpass(self.ax, fc=5, fs=100)
-
-
-    @property
-    def ay_lpf(self):
-        """5/100 Lowpass filtered accelerometer data for y"""
-        return lowpass(self.ay, fc=5, fs=100)
-
-
-    @property
-    def az_lpf(self):
-        """5/100 Lowpass filtered accelerometer data for z"""
-        return lowpass(self.az, fc=5, fs=100)      
-
-
-    @property
     def gyro(self):
         """Unfiltered Gyroscope (3D gyroscopic vector magnitude)"""
         return length(self.gx, self.gy, self.gz)      
@@ -71,13 +55,31 @@ class Tile:
     @property
     def mG(self):
         """Unfiltered mG-forces (3D accelerometer vector magnitude)"""
-        return length(self.ax, self.ay, self.az)      
+        return length(self.ax, self.ay, self.az)
 
 
-    @property
-    def mG_lpf(self):
-        """15/100 Lowpass filtered mG-forces"""
-        return lowpass(length(self.ax_lpf, self.ay_lpf, self.az_lpf), fc=15, fs=100)      
+    def ax_lpf(self, Wn=5/100, ftype='iir1'):
+        """5/100 Lowpass filtered accelerometer data for x"""
+        return lowpass(self.ax, Wn, ftype=ftype)
+
+
+    def ay_lpf(self, Wn=5/100, ftype='iir1'):
+        """5/100 Lowpass filtered accelerometer data for y"""
+        return lowpass(self.ay, Wn, ftype=ftype)
+
+
+    def az_lpf(self, Wn=5/100, ftype='iir1'):
+        """5/100 Lowpass filtered accelerometer data for z"""
+        return lowpass(self.az, Wn, ftype=ftype)      
+
+
+    def mG_lpf(self, Wn=3/100, ftype='iir1'):
+        """mG-forces based on 3/100 lowpass filtered accelerometer values"""
+        return length(
+            self.ax_lpf(ftype=ftype, Wn=Wn), 
+            self.ay_lpf(ftype=ftype, Wn=Wn), 
+            self.az_lpf(ftype=ftype, Wn=Wn)
+        )
 
 
     def identifyJumps(self):
@@ -85,15 +87,30 @@ class Tile:
         
         Confidence values will be associated with each `Jump` instance.
         """
-        lowG_els = identifyRangesBelowTH(self.mG_lpf, Jump.mGThreshold())
-        self.jumps = [Jump(el, self.mG_lpf, self.mG, self.gyro) for el in lowG_els]
+        lowG_els = identifyRangesBelowTH(self.mG_lpf(), Jump.mGThreshold())
+        self.jumps = [Jump(el, self.mG_lpf(), self.mG, self.gyro) for el in lowG_els]
 
     
     def identifyTurns(self): pass
 
 
-    def imu6dof(self): pass
-        
+    def imu9dof(self):
+        offset = imufusion.Offset(100)
+        ahrs = imufusion.Ahrs()
+        ahrs.settings = imufusion.Settings(imufusion.CONVENTION_NWU,  # convention
+                                   0.5,  # gain
+                                   2000,  # gyroscope range
+                                   10,  # acceleration rejection
+                                   10,  # magnetic rejection
+                                   5 * 100)  # recovery trigger period = 5 seconds
 
-    def imu9dof(self): pass
+        euler_9dof = np.empty((len(self.time), 3))
+        for i in range(len(self.time)):
+            gyro = np.array([self.gx[i], self.gy[i], self.gz[i]])
+            offset_gyro = offset.update(gyro)
+            accel = np.array([self.ax_lpf()[i], self.ay_lpf()[i], self.az_lpf()[i]])
+            mag = np.array([self.mx[i], self.my[i], self.mz[i]])
 
+            ahrs.update(offset_gyro, accel, mag, 0.01)
+            euler_9dof[i] = ahrs.quaternion.to_euler()
+        return euler_9dof

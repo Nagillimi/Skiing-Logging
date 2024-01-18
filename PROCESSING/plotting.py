@@ -111,9 +111,9 @@ def plotJumpAnalysis(track: Tile, jump_idx: int):
     min_i = track.jumps[jump_idx].min_idx
     air_r = track.jumps[jump_idx].air_range
     landing_r = track.jumps[jump_idx].landing_range
-    mg_raw = length(track.ax, track.ay, track.az)
-    mg_filt = track.mG_lpf
-    gyro = length(track.gx, track.gy, track.gz)
+    mg_raw = track.mG
+    mg_filt = track.mG_lpf()
+    gyro = track.gyro
 
     # plot indices
     i1 = air_r[0]; i2 = landing_r[1]
