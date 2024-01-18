@@ -97,8 +97,20 @@ def plotAltMag(track: Tile):
     return fig
 
 
-def plotJumpAnalysis(track: Tile, kinematics):
-    min_i = kinematics[0]; air_r = kinematics[1]; landing_r = kinematics[2]
+def plotTileRuns(runs: [Tile]):
+    plt.rc('lines', linewidth=1)
+    fig, ax = plt.subplots()
+    for i in range(len(runs)): ax.plot(runs[i].time, runs[i].corrected_alt, label=['Tile Run', i])
+    ax.set_title('Functional method for the Synchronized Tile vs. Stitched Tile (runs only from F6P timestamps, offset from A50)', wrap=True)
+    
+    plt.show()
+    return fig
+
+
+def plotJumpAnalysis(track: Tile, jump_idx: int):
+    min_i = track.jumps[jump_idx].min_idx
+    air_r = track.jumps[jump_idx].air_range
+    landing_r = track.jumps[jump_idx].landing_range
     mg_raw = length(track.ax, track.ay, track.az)
     mg_filt = track.mG_lpf
     gyro = length(track.gx, track.gy, track.gz)
@@ -113,23 +125,23 @@ def plotJumpAnalysis(track: Tile, kinematics):
     fig, ax = plt.subplots(3, figsize=(8, 4))
 
     ax[0].plot(track.time[i1:i2], mg_filt[i1:i2])
-    ax[0].plot(track.time[i1:i2], [Jump.mgThreshold() for _ in mg_filt[i1:i2]], 'k--')
+    ax[0].plot(track.time[i1:i2], [Jump.mGThreshold() for _ in mg_filt[i1:i2]], 'k--')
     ax[0].axvspan(track.time[air_r[0]], track.time[air_r[1]], color='green', alpha=0.5)
     ax[0].axvline(x=min_t, ls=':', color='k')
     ax[0].axvspan(track.time[landing_r[0]], track.time[landing_r[1]], color='red', alpha=0.5)
-    ax[0].set_title('Run 1 Tile Filtered mG-force (& threshold)', wrap=True)
+    ax[0].set_title('Jump ')# + (jump_idx + 1) + ' Tile Filtered mG-force (& threshold)', wrap=True)
 
     ax[1].plot(track.time[i1:i2], mg_raw[i1:i2])
     ax[1].axvspan(track.time[air_r[0]], track.time[air_r[1]], color='green', alpha=0.5)
     ax[1].axvline(x=min_t, ls=':', color='k')
     ax[1].axvspan(track.time[landing_r[0]], track.time[landing_r[1]], color='red', alpha=0.5)
-    ax[1].set_title('Run 1 Tile Unfiltered mG-force', wrap=True)
+    ax[1].set_title('Jump ')# + (jump_idx + 1) + ' Tile Unfiltered mG-force', wrap=True)
 
     ax[2].plot(track.time[i1:i2], gyro[i1:i2])
     ax[2].axvspan(track.time[air_r[0]], track.time[air_r[1]], color='green', alpha=0.5)
     ax[2].axvline(x=min_t, ls=':', color='k')
     ax[2].axvspan(track.time[landing_r[0]], track.time[landing_r[1]], color='red', alpha=0.5)
-    ax[2].set_title('Run 1 Tile Unfiltered Gyroscope', wrap=True)
+    ax[2].set_title('Jump ')# + (jump_idx + 1) + ' Tile Unfiltered Gyroscope', wrap=True)
     
     plt.tight_layout()
     plt.show()

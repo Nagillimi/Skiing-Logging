@@ -1,5 +1,5 @@
 from jump_tests import JumpTests
-from signal_processing import maxIndex, minIndex
+from signal_processing import maxIndex, mean, minIndex, trapz
 
 class Jump(JumpTests):
     def __init__(self, lowG_range: [], mG_lpf: [], mG: [], gyro: [], print_out=False) -> None:
@@ -14,38 +14,62 @@ class Jump(JumpTests):
 
 
     @staticmethod
-    def mgThreshold():
+    def mGThreshold():
         """The static low mG threshold to trigger jump identification."""
         return 600
 
 
-    def computeAirRange(self, th=2, print_out=False):
+    @property
+    def airTime(self):
+        """Calculate the air time from `liftoff_idx` and the landing impulse, `landing_idx`"""
+        # indices are in 100Hz
+        return (self.landing_idx - self.liftoff_idx) / 100
+
+
+    @property
+    def distance(self):
+        """Calculate the jump distance based on the integration of the Tile
+        acceleration subtracting gravity
+        """
+        # integrate (1G - mG_lpf) to get velocity
+        vel = trapz([a - 1 for a in self.mG_lpf])
+        mean_air_time_vel = mean(vel[self.liftoff_idx:self.landing_idx])
+        # TODO should I use v2-v1 here
+
+        return mean_air_time_vel * self.airTime
+
+
+    def computeAirPhase(self, th=2, print_out=False):
         """Calculate the index range of total air time, where `min_idx` is the last element.
-        
-        Scans the left of `mG_lpf` signal for start of the decline to the min_index of low G.
+        Scans the left of `mG_lpf` signal for start of the decline to the min_idx of low G.
+
+        Store the maximum seen before `min_idx` in `mG_lpf` as the `liftoff_idx`.
         """
         x1 = 0
         for i in range(len(self.mG_lpf[0:self.min_idx])):
             if self.mG_lpf[self.min_idx - i] - self.mG_lpf[self.min_idx - (i + 1)] > th:
                 x1 = self.min_idx - (i + 1)
                 break
-        self.air_range =  [maxIndex(self.mG_lpf, [x1, self.min_idx]), self.min_idx]
+        self.liftoff_idx = maxIndex(self.mG_lpf, [x1, self.min_idx])
+        self.air_range =  [self.liftoff_idx, self.min_idx]
         if print_out: print('air_range:\t', self.air_range)
     
 
-    def computeLandingRange(self, delay_s=0.5, print_out=False):
+    def computeLandingPhase(self, delay_s=0.5, print_out=False):
         """Calculate the index range of the landing phase, where `min_idx` is the first element.
-        
         Uses a static delay of `delay_s` after a small increase is observed in the `mG_lpf`.
+
+        Store the impulse seen in `mG` as the `landing_idx`.
         """
         touch_idx = 0
-        for i in range(len(self.mg_lpf[self.min_idx:-1])):
-            if self.mg_lpf[self.min_idx + (i + 1)] - self.mg_lpf[self.min_idx + i] > 10:
+        for i in range(len(self.mG_lpf[self.min_idx:-1])):
+            if self.mG_lpf[self.min_idx + (i + 1)] - self.mG_lpf[self.min_idx + i] > 10:
                 touch_idx = self.min_idx + i + 1
                 break
 
         x2 = int(touch_idx + delay_s * 100)
-        self.landing_range = [self.min_idx, maxIndex(self.mg_lpf, [self.min_idx, x2])]
+        self.landing_range = [self.min_idx, x2]
+        self.landing_idx = maxIndex(self.mG, self.landing_range)
         if print_out: print('landing_range:\t', self.landing_range)
     
 
@@ -84,15 +108,12 @@ class Jump(JumpTests):
     
     def identify(self, print_out=False):
         """Identifies the ranges of air time and landing"""
-        self.min_index = minIndex(self.mG_lpf, self.lowG_range)
-        if print_out: print('min_index:\t\t', self.min_index)
+        self.min_idx = minIndex(self.mG_lpf, self.lowG_range)
+        if print_out: print('min_idx:\t\t', self.min_idx)
 
         # TODO confirm jump alignment
 
-        self.computeAirRange(print_out=print_out)
-        self.computeLandingRange(print_out=print_out)
-
-        # TODO methods for determining air time and distance
-
+        self.computeAirPhase(print_out=print_out)
+        self.computeLandingPhase(print_out=print_out)
         self.test(print_out=print_out)
     

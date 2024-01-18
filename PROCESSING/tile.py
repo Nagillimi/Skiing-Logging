@@ -46,19 +46,19 @@ class Tile:
 
     @property
     def ax_lpf(self):
-        """5/100 Hz/Hz Lowpass filtered accelerometer data for x"""
+        """5/100 Lowpass filtered accelerometer data for x"""
         return lowpass(self.ax, fc=5, fs=100)
 
 
     @property
     def ay_lpf(self):
-        """5/100 Hz/Hz Lowpass filtered accelerometer data for y"""
+        """5/100 Lowpass filtered accelerometer data for y"""
         return lowpass(self.ay, fc=5, fs=100)
 
 
     @property
     def az_lpf(self):
-        """5/100 Hz/Hz Lowpass filtered accelerometer data for z"""
+        """5/100 Lowpass filtered accelerometer data for z"""
         return lowpass(self.az, fc=5, fs=100)      
 
 
@@ -76,7 +76,7 @@ class Tile:
 
     @property
     def mG_lpf(self):
-        """15/100 Hz/Hz Lowpass filtered mG-forces"""
+        """15/100 Lowpass filtered mG-forces"""
         return lowpass(length(self.ax_lpf, self.ay_lpf, self.az_lpf), fc=15, fs=100)      
 
 
@@ -85,8 +85,8 @@ class Tile:
         
         Confidence values will be associated with each `Jump` instance.
         """
-        lowG_els = identifyRangesBelowTH(self.mG_lpf, Jump.mgThreshold())
-        self.jumps = [Jump(r, self.mG_lpf, self.mG, self.gyro) for r in range(len(lowG_els))]
+        lowG_els = identifyRangesBelowTH(self.mG_lpf, Jump.mGThreshold())
+        self.jumps = [Jump(el, self.mG_lpf, self.mG, self.gyro) for el in lowG_els]
 
     
     def identifyTurns(self): pass

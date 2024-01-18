@@ -5,6 +5,8 @@ def groupClosePointsIntoRanges(idxs, th=2):
     whose changes are separated by values greater than `th`
     """
     ranges = []
+    if len(idxs) == 0:
+        return ranges
     x1 = idxs[0]
     x2 = idxs[-1]
     for i in range(len(idxs) - 1):
@@ -25,6 +27,21 @@ def idxsUnderTH(x, th=200):
     below `th`.
     """
     return [x.index(xi) for xi in x if xi < th]
+
+
+def trapz(x, dt=0.01):
+    """Computes the trapezoidal integration of the input signal `x`.
+    
+    Assumes a `dt` of 0.01seconds = 100Hz, otherwise override it.
+    """
+    return [
+        (
+            # rectangle
+            x[i] +
+            # triangle
+            ((x[i + 1] - (x[i - 1] if i > 0 else 0)) / 2)
+        ) * dt for i in range(len(x) - 1)
+    ]
 
 
 def length(ax, ay, az):

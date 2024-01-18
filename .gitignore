@@ -10,4 +10,5 @@
 *.tcx
 *.DS_Store
 *.zip
+*.pdf
 __pycache__

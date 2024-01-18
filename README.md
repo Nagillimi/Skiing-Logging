@@ -16,6 +16,9 @@ To provide more skiing analytics with an extra wearable placed above the ski boo
 - jump distance
 - jump height
 - ski carving angle
+- ski angle of attack
+- skid to carving ratio
+- grf/reaction force power in [Watts]
 
 ## Devices
 

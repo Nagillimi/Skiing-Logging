@@ -99,7 +99,7 @@ def splitTileIntoDownhillTracks(
         a50: [Track] = [],
         printOutput=False,
         start_offset=True,
-        stop_offset=True):
+        stop_offset=True) -> [Tile]:
     start_avg = 0
     stop_avg = 0
     if a50:
@@ -123,7 +123,6 @@ def splitTileIntoDownhillTracks(
     # get the start&stop timestamps for every f6p run
     ts_splits = [[track.time[0] - start_avg, track.time[-1] + stop_avg] for track in f6p]
 
-    print(ts_splits)
     # get indices in tile_sync that match these timestamps
     tile_start_idxs = [tile_sync.time.index(split[0]) for split in ts_splits]
     tile_stop_idxs = [tile_sync.time.index(split[1]) for split in ts_splits]
@@ -131,6 +130,7 @@ def splitTileIntoDownhillTracks(
     # split by these timestamps into [Tile]
     tile_runs = []
     for i in range(len(tile_start_idxs)):
+        print(tile_start_idxs[i], tile_stop_idxs[i])
         tile_runs.append(
             Tile(
                 time=tile_sync.time[tile_start_idxs[i]:tile_stop_idxs[i]],
@@ -147,6 +147,7 @@ def splitTileIntoDownhillTracks(
                 temp=tile_sync.temp[tile_start_idxs[i]:tile_stop_idxs[i]],
                 hum=tile_sync.hum[tile_start_idxs[i]:tile_stop_idxs[i]],
                 corrected_alt=tile_sync.corrected_alt[tile_start_idxs[i]:tile_stop_idxs[i]]
+                # identifyKinematics=False
             )
         )
     return tile_runs
