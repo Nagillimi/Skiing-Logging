@@ -104,13 +104,25 @@ class Tile:
                                    10,  # magnetic rejection
                                    5 * 100)  # recovery trigger period = 5 seconds
 
-        euler_9dof = np.empty((len(self.time), 3))
+        euler = np.empty((len(self.time), 3))
         for i in range(len(self.time)):
             gyro = np.array([self.gx[i], self.gy[i], self.gz[i]])
             offset_gyro = offset.update(gyro)
-            accel = np.array([self.ax_lpf()[i], self.ay_lpf()[i], self.az_lpf()[i]])
+            accel = np.array([self.ax_lpf()[i], self.ay_lpf()[i], self.az_lpf()[i]]) / 1000
             mag = np.array([self.mx[i], self.my[i], self.mz[i]])
 
             ahrs.update(offset_gyro, accel, mag, 0.01)
-            euler_9dof[i] = ahrs.quaternion.to_euler()
-        return euler_9dof
+            euler[i] = ahrs.quaternion.to_euler()
+        return euler
+
+
+    def imu6dof(self):
+        ahrs = imufusion.Ahrs()
+        euler = np.empty((len(self.time), 3))
+
+        for i in range(len(self.time)):
+            gyro = np.array([self.gx[i], self.gy[i], self.gz[i]])
+            accel = np.array([self.ax_lpf()[i], self.ay_lpf()[i], self.az_lpf()[i]]) / 1000
+            ahrs.update_no_magnetometer(gyro, accel, 1 / 100)  # 100 Hz sample rate
+            euler[i] = ahrs.quaternion.to_euler()
+        return euler
