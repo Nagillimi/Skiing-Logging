@@ -106,12 +106,12 @@ class Tile:
 
         euler = np.empty((len(self.time), 3))
         for i in range(len(self.time)):
-            gyro = np.array([self.gx[i], self.gy[i], self.gz[i]])
+            gyro = np.divide([self.gx[i], self.gy[i], self.gz[i]], 1000)
             offset_gyro = offset.update(gyro)
-            accel = np.array([self.ax_lpf()[i], self.ay_lpf()[i], self.az_lpf()[i]]) / 1000
-            mag = np.array([self.mx[i], self.my[i], self.mz[i]])
+            accel = np.divide([self.ax[i], self.ay[i], self.az[i]], 1000)
+            mag = np.divide([self.mx[i], self.my[i], self.mz[i]], 1000)
 
-            ahrs.update(offset_gyro, accel, mag, 0.01)
+            ahrs.update(offset_gyro, accel, mag, 1 / 100)
             euler[i] = ahrs.quaternion.to_euler()
         return euler
 
@@ -121,8 +121,8 @@ class Tile:
         euler = np.empty((len(self.time), 3))
 
         for i in range(len(self.time)):
-            gyro = np.array([self.gx[i], self.gy[i], self.gz[i]])
-            accel = np.array([self.ax_lpf()[i], self.ay_lpf()[i], self.az_lpf()[i]]) / 1000
+            gyro = np.divide([self.gx[i], self.gy[i], self.gz[i]], 1000)
+            accel = np.divide([self.ax[i], self.ay[i], self.az[i]], 1000)
             ahrs.update_no_magnetometer(gyro, accel, 1 / 100)  # 100 Hz sample rate
             euler[i] = ahrs.quaternion.to_euler()
         return euler
