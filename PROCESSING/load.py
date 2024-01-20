@@ -1,5 +1,6 @@
 from decode import decode_A50, decode_A50_downhill, decode_F6P, decode_tile
-from sync import syncTile, splitTileIntoDownhillTileTracks
+from sync import syncTile
+from split import splitTileIntoDownhillTileTracks
 
 def load_2022_12_24(print_out=True):
     """Imports all datasets from 2022, 12, 24 at Morin Heights.

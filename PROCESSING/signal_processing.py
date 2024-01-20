@@ -83,9 +83,9 @@ def mae(x1, x2):
     return mean(abs_d)
 
 
-def maxIndex(x, r):
+def maxIndex(x, r=None):
     """Population max index with of input signal `x`"""
-    if len(r) == 0:
+    if r is None:
         return x.index(max(x))
     if r[0] == r[1]:
         return r[0]
@@ -95,7 +95,7 @@ def maxIndex(x, r):
 
 def mean(x):
     """Population mean of the full range of input signal `x`"""
-    return sum(x) / len(x)
+    return sum(x) / (len(x) if len(x) > 0 else 1)
 
 
 def mse(x1, x2):
@@ -105,9 +105,9 @@ def mse(x1, x2):
     return mean(d2)
 
 
-def minIndex(x, r=[]):
+def minIndex(x, r=None):
     """Population min index with of input signal `x`"""
-    if len(r) == 0:
+    if r is None:
         return x.index(min(x))
     if r[0] == r[1]:
         return r[0]
@@ -145,4 +145,4 @@ def variance(x):
     `sum((xi - mean(x))**2) / len(x)`
     """
     u = mean(x)
-    return sum([(xi - u)**2 for xi in x]) / len(x)
+    return sum([(xi - u)**2 for xi in x]) / (len(x) if len(x) > 0 else 1)

@@ -13,7 +13,8 @@ class Tile:
             pres: list[float],
             temp: list[float],
             hum: list[float],
-            corrected_alt: list[float]
+            corrected_alt: list[float],
+            computeOrientations=True
     ):
         self.time = time
         self.ax = ax
@@ -30,6 +31,11 @@ class Tile:
         self.hum = hum
         # set from the sync, using the ground truth to account constant offsets
         self.corrected_alt = corrected_alt
+
+        if not computeOrientations:
+            return
+        self.euler6 = self.imu6dof()
+        self.euler9 = self.imu9dof()
 
 
     def __printProps__(self, prefix="\t"):
