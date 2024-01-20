@@ -1,5 +1,6 @@
 import math
 from scipy import signal
+import numpy as np
 
 
 def arma(x, m=5):
@@ -11,6 +12,11 @@ def arma(x, m=5):
 
 def butter(x, m=2):
     """"""
+
+
+def diff(x1, x2):
+    """returns `x1` - `x2` element-wise."""
+    return [x1[i] - x2[i] for i in range(len(x1))]
 
 
 def groupClosePointsIntoRanges(idxs, th=2):
@@ -70,6 +76,13 @@ def lowpass(x, Wn, ftype='iir1'):
         return []
 
 
+def mae(x1, x2):
+    """Mean absolute error between `x1` and `x2`."""
+    d = diff(x1, x2)
+    abs_d = [abs(di) for di in d]
+    return mean(abs_d)
+
+
 def maxIndex(x, r):
     """Population max index with of input signal `x`"""
     if len(r) == 0:
@@ -85,6 +98,13 @@ def mean(x):
     return sum(x) / len(x)
 
 
+def mse(x1, x2):
+    """Mean sum error between `x1` and `x2`."""
+    d = diff(x1, x2)
+    d2 = [di**2 for di in d]
+    return mean(d2)
+
+
 def minIndex(x, r=[]):
     """Population min index with of input signal `x`"""
     if len(r) == 0:
@@ -93,6 +113,11 @@ def minIndex(x, r=[]):
         return r[0]
     window = x[r[0]:r[1]]
     return r[0] + window.index(min(window))
+
+
+def rmse(x1, x2):
+    """Root mean sum error between `x1` and `x2`."""
+    return math.sqrt(mse(x1, x2))
 
 
 def std(x):

@@ -3,7 +3,7 @@ from datetime import date, time
 class Track:
     def __init__(
             self,
-            type: str,
+            track_type: str,
             date: date,
             tod: time,
             duration: int,
@@ -18,7 +18,7 @@ class Track:
             course: list[float] = []
     ):
         # props
-        self.type = type
+        self.track_type = track_type
         self.date = date
         self.tod = tod
         self.duration = duration
@@ -34,9 +34,10 @@ class Track:
         self.var = var
         self.course = course
 
-    def __printProps__(self):
+    def __printProps__(self, prefix="\t"):
         print(
-            "Track type", self.type, "|",
+            prefix,
+            "Track type", self.track_type, "|",
             "Date", self.date, "|",
             "Time", self.tod, "|",
             "Duration [s]", self.duration, "|",

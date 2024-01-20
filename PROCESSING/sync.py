@@ -1,15 +1,15 @@
+from tile_track import TileTrack
+from decorators import printTracks
 from track import Track
 from tile import Tile
 from stitch import stitch
 
-### synchronizes the tile signals with the stitched a50 tracks
-### using the altitude as a ground truth
-###
-### returns tile dataset with global timestamps and corrected altitude
+
 def syncTile(
         tile: Tile,
         truth: [Track],
-        printOutput=False,
+        use_lpf=True,
+        print_out=False,
         printProgress=False,
         use_mae=True,
         time_step_s=0.1,
@@ -17,7 +17,12 @@ def syncTile(
         alt_step=0.1,
         min_alt_start=0,
         max_alt_search=75):
-    tile_alt = tile.raw_alt
+    """synchronizes the tile signals with the stitched a50 tracks
+    using the altitude as a ground truth.
+
+    Returns tile dataset with global timestamps and corrected altitude
+    """
+    tile_alt = tile.raw_alt_lpf if use_lpf else tile.raw_alt
     stitched_a50_time, stitched_a50_alt = stitch(truth)
 
     # 2. find the optimal time and altitude offsets
@@ -65,9 +70,10 @@ def syncTile(
     # 3. Align the timestamp with the start of the a50 dataset, incorporating the offset
     opt_ts = ts_all[min_ts_idx] 
     opt_alt = alt_all[min_ts_idx]
-    if printOutput:
-        print('Timestamp offset:', opt_ts)
-        print('Altitude offset:', opt_alt)
+    if print_out:
+        print('Synchronized Tile Parameters')
+        print('\tTimestamp offset:', opt_ts)
+        print('\tAltitude offset:', opt_alt)
     # converting the timestamps to the global format, which are in seconds
     corrected_tile_time = [((t - tile.time[0]) / 1000) + stitched_a50_time[0] - (opt_ts / 100) for t in tile.time]
     corrected_tile_alt = [a - opt_alt for a in tile_alt]
@@ -86,33 +92,36 @@ def syncTile(
         temp = tile.temp,
         hum = tile.hum,
         corrected_alt=corrected_tile_alt,
-        identifyKinematics=False # don't run the kinematic id until the tracks are split
     )
 
-# Splits the tile data into an array of Tile representing the downhill tracks only.
-#
-# Optional import of the a50 data to apply the offsets between the 2 ground truths,
-# included since the goal is to publish processing signals to f6p, not a50.
-def splitTileIntoDownhillTracks(
+
+@printTracks
+def splitTileIntoDownhillTileTracks(
         tile_sync: Tile,
-        f6p: [Track],
-        a50: [Track] = [],
-        printOutput=False,
+        truth: [Track],
+        second_truth: [Track] = [],
+        print_out=False,
         start_offset=True,
-        stop_offset=True) -> [Tile]:
+        stop_offset=True,
+        header=""):
+    """Splits the tile data into an array of Tile representing the downhill tracks only.
+
+    Optional import of the a50 data to apply the offsets between the 2 ground truths,
+    included since the goal is to publish processing signals to f6p, not a50.
+    """
     start_avg = 0
     stop_avg = 0
-    if a50:
-        ts_splits_f6p = [[track.time[0], track.time[-1]] for track in f6p]
-        ts_splits_a50 = [[track.time[0], track.time[-1]] for track in a50]
+    if second_truth:
+        ts_splits_truth = [[track.time[0], track.time[-1]] for track in truth]
+        ts_splits_truth2 = [[track.time[0], track.time[-1]] for track in second_truth]
 
-        for i in range(len(ts_splits_f6p)):
-            start_avg += abs(ts_splits_f6p[i][0] - ts_splits_a50[i][0])
-            stop_avg += abs(ts_splits_f6p[i][1] - ts_splits_a50[i][1])
+        for i in range(len(ts_splits_truth)):
+            start_avg += abs(ts_splits_truth[i][0] - ts_splits_truth2[i][0])
+            stop_avg += abs(ts_splits_truth[i][1] - ts_splits_truth2[i][1])
 
-        start_avg = round(start_avg / len(ts_splits_f6p))
-        stop_avg = round(stop_avg / len(ts_splits_f6p))
-        if printOutput:
+        start_avg = round(start_avg / len(ts_splits_truth))
+        stop_avg = round(stop_avg / len(ts_splits_truth))
+        if print_out:
             print("Avgerage starting and stopping indices:")
             print(start_avg)
             print(stop_avg)
@@ -121,7 +130,7 @@ def splitTileIntoDownhillTracks(
         if not stop_offset: stop_avg = 0
 
     # get the start&stop timestamps for every f6p run
-    ts_splits = [[track.time[0] - start_avg, track.time[-1] + stop_avg] for track in f6p]
+    ts_splits = [[track.time[0] - start_avg, track.time[-1] + stop_avg] for track in truth]
 
     # get indices in tile_sync that match these timestamps
     tile_start_idxs = [tile_sync.time.index(split[0]) for split in ts_splits]
@@ -130,9 +139,13 @@ def splitTileIntoDownhillTracks(
     # split by these timestamps into [Tile]
     tile_runs = []
     for i in range(len(tile_start_idxs)):
-        print(tile_start_idxs[i], tile_stop_idxs[i])
         tile_runs.append(
-            Tile(
+            TileTrack(
+                track_type=truth[i].track_type,
+                date=truth[i].date,
+                tod=truth[i].tod,
+                duration=truth[i].duration,
+                length=truth[i].length,
                 time=tile_sync.time[tile_start_idxs[i]:tile_stop_idxs[i]],
                 ax=tile_sync.ax[tile_start_idxs[i]:tile_stop_idxs[i]],
                 ay=tile_sync.ay[tile_start_idxs[i]:tile_stop_idxs[i]],
@@ -147,7 +160,6 @@ def splitTileIntoDownhillTracks(
                 temp=tile_sync.temp[tile_start_idxs[i]:tile_stop_idxs[i]],
                 hum=tile_sync.hum[tile_start_idxs[i]:tile_stop_idxs[i]],
                 corrected_alt=tile_sync.corrected_alt[tile_start_idxs[i]:tile_stop_idxs[i]]
-                # identifyKinematics=False
             )
         )
     return tile_runs

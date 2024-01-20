@@ -1,9 +1,12 @@
 import pandas as pd
+from decorators import printTracks
 from tile import Tile
 from track import Track
 from datetime import datetime
 
-def decode_A50(file, printProps=False):
+
+@printTracks
+def decode_A50(file, print_out, header):
     csv = pd.read_csv(file)
     l = csv.loc[csv.iloc[:, 0].isnull()].index.to_list()
     nan_indices = [0] + l + [csv.shape[0]]
@@ -33,7 +36,7 @@ def decode_A50(file, printProps=False):
         var = [int(a) for a in vectors.iloc[:, 7].tolist()]
 
         trackObj = Track(
-            type=type,
+            track_type=type,
             date=date,
             tod=tod,
             duration=duration,
@@ -47,17 +50,18 @@ def decode_A50(file, printProps=False):
             var=var,
             course=course
         )
-        if printProps: trackObj.__printProps__()
         tracks.append(trackObj)
     return tracks
 
 
-def decode_A50_downhill(file, printProps=False):
-    tracks = decode_A50(file, printProps)
-    return [track for track in tracks if track.type == "Downhill"]
+@printTracks
+def decode_A50_downhill(file, print_out, header):
+    tracks = decode_A50(file, print_out=False, header="")
+    return [track for track in tracks if track.track_type == "Downhill"]
 
 
-def decode_F6P(file, printProps=False):
+@printTracks
+def decode_F6P(file, print_out, header):
     ts_msb = 631065600 # Add MSB since this is the LSB of the ts https://stackoverflow.com/a/57836047
     csv = pd.read_csv(file, low_memory=False) # no low memory due to columns having data with nonintersecting types
     lap_rows = csv.loc[csv['Message'] == 'lap'].loc[csv['Type'] == 'Data']
@@ -82,7 +86,7 @@ def decode_F6P(file, printProps=False):
         long = [float(l) * 180 / (2**31) for l in track.iloc[:, 10].tolist()] # convert from sc to deg
 
         trackObj = Track(
-            type="Downhill",
+            track_type="Downhill",
             date=date,
             tod=tod,
             duration=duration,
@@ -94,16 +98,17 @@ def decode_F6P(file, printProps=False):
             lat=lat,
             long=long
         )
-        if printProps: trackObj.__printProps__()
         tracks.append(trackObj)
 
         total_dist += length
     return tracks
 
 
-def decode_tile(file):
+@printTracks
+def decode_tile(file, print_out, header):
     csv = pd.read_csv(file)
-    return Tile(
+
+    tile = Tile(
         time=[int(t) for t in csv.iloc[:, 0].tolist()],
         ax=[int(a) for a in csv.iloc[:, 1].tolist()],
         ay=[int(a) for a in csv.iloc[:, 2].tolist()],
@@ -118,5 +123,5 @@ def decode_tile(file):
         temp=[float(t) for t in csv.iloc[:, 11].tolist()],
         hum=[float(h) for h in csv.iloc[:, 12].tolist()],
         corrected_alt=[], # not computed here to avoid confusion with raw_alt() method
-        identifyKinematics=False # don't run the kinematic id until the tracks are split
     )
+    return tile
