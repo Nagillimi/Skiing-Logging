@@ -89,6 +89,5 @@ def syncTile(
         pres = tile.pres,
         temp = tile.temp,
         hum = tile.hum,
-        corrected_alt=corrected_tile_alt,
-        computeOrientations=False # no need to recompute here
+        corrected_alt=corrected_tile_alt
     )

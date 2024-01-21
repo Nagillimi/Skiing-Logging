@@ -13,8 +13,7 @@ class Tile:
             pres: list[float],
             temp: list[float],
             hum: list[float],
-            corrected_alt: list[float],
-            computeOrientations=True
+            corrected_alt: list[float]
     ):
         self.time = time
         self.ax = ax
@@ -31,11 +30,8 @@ class Tile:
         self.hum = hum
         # set from the sync, using the ground truth to account constant offsets
         self.corrected_alt = corrected_alt
-
-        if not computeOrientations:
-            return
-        self.euler6 = self.imu6dof()
-        self.euler9 = self.imu9dof()
+        self.euler6 = self.computeEuler6()
+        self.euler9 = self.computeEuler9()
 
 
     def __printProps__(self, prefix="\t"):
@@ -80,31 +76,7 @@ class Tile:
         return length(self.ax, self.ay, self.az)
 
 
-    def ax_lpf(self, Wn, ftype):
-        """Lowpass filtered accelerometer data for x"""
-        return lowpass(self.ax, Wn, ftype=ftype)
-
-
-    def ay_lpf(self, Wn, ftype):
-        """Lowpass filtered accelerometer data for y"""
-        return lowpass(self.ay, Wn, ftype=ftype)
-
-
-    def az_lpf(self, Wn, ftype):
-        """Lowpass filtered accelerometer data for z"""
-        return lowpass(self.az, Wn, ftype=ftype)      
-
-
-    def mG_lpf(self, Wn=3/100, ftype='butter2'):
-        """mG-forces based on 3/100 lowpass filtered accelerometer values"""
-        return length(
-            self.ax_lpf(Wn=Wn, ftype=ftype), 
-            self.ay_lpf(Wn=Wn, ftype=ftype), 
-            self.az_lpf(Wn=Wn, ftype=ftype)
-        )
-
-
-    def imu9dof(self):
+    def computeEuler9(self):
         """IMU Sensor Fusion data based on 9dof sensors, (accel, gyro, mag).
         
         Gyro angles corrected with gravity vector from the accelerometer frame & 
@@ -131,17 +103,41 @@ class Tile:
         return euler
 
 
-    def imu6dof(self):
+    def computeEuler6(self):
         """IMU Sensor Fusion data based on 6dof sensors, (accel, gyro).
         
         Gyro angles corrected with gravity vector from the accelerometer frame.
         """
         ahrs = imufusion.Ahrs()
-        euler = np.empty((len(self.time), 3))
 
+        euler = np.empty((len(self.time), 3))
         for i in range(len(self.time)):
             gyro = np.divide([self.gx[i], self.gy[i], self.gz[i]], 1000) #mdps -> dps
             accel = np.divide([self.ax[i], self.ay[i], self.az[i]], 1000) #mG -> G
             ahrs.update_no_magnetometer(gyro, accel, 1 / 100)  # 100 Hz sample rate
             euler[i] = ahrs.quaternion.to_euler()
         return euler
+
+
+    def ax_lpf(self, Wn, ftype):
+        """Lowpass filtered accelerometer data for x"""
+        return lowpass(self.ax, Wn, ftype=ftype)
+
+
+    def ay_lpf(self, Wn, ftype):
+        """Lowpass filtered accelerometer data for y"""
+        return lowpass(self.ay, Wn, ftype=ftype)
+
+
+    def az_lpf(self, Wn, ftype):
+        """Lowpass filtered accelerometer data for z"""
+        return lowpass(self.az, Wn, ftype=ftype)      
+
+
+    def mG_lpf(self, Wn=3/100, ftype='butter2'):
+        """mG-forces based on 3/100 lowpass filtered accelerometer values"""
+        return length(
+            self.ax_lpf(Wn=Wn, ftype=ftype), 
+            self.ay_lpf(Wn=Wn, ftype=ftype), 
+            self.az_lpf(Wn=Wn, ftype=ftype)
+        )
