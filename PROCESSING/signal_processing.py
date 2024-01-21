@@ -19,6 +19,62 @@ def diff(x1, x2):
     return [x1[i] - x2[i] for i in range(len(x1))]
 
 
+def fixZeroCrossings(x, c=0, single_scale=180):
+    """Fixes the zero crossings in a signal that is previously clamped to a 
+    single scale range of `single_scale`.
+
+    Note, this can get out of control if you keep on turning around and around (for a yaw example).
+    The numbers will just keep increasing until you come back to baseline.
+
+    This is useful for graphs when trying to test for stillness, since a zero crossing would be a massive
+    outlier.
+    """
+    # y = x
+    # for i in range(len(x)):
+    #     if i == 0: continue
+    #     if x[i] > 0 and x[i] - x[i - 1] >= 1.85 * single_scale:
+    #         # sub cm from xi and all following el until the opposite crossing
+    #         for j in range(len(x) - i):
+    #             y[i + j] = x[i + j] - 2 * single_scale
+    #             if x[i] < 0 and x[i] - x[i - 1] <= -1.85 * single_scale:
+    #                 break
+    #         continue
+
+    #     if x[i] < 0 and x[i] - x[i - 1] <= -1.85 * single_scale:
+    #         # sub cm from xi and all following el until the opposite crossing
+    #         for j in range(len(x) - i):
+    #             y[i + j] = x[i + j] + 2 * single_scale
+    #             if x[i] > 0 and x[i] - x[i - 1] >= 1.85 * single_scale:
+    #                 break
+    #         continue
+    # return y
+
+    print(len(x))
+
+    y = x
+    for i in range(len(x) - 1):
+        # if i == 0: continue
+        if x[i + 1] > 0 and (x[i + 1] - x[i]) >= (1.85 * single_scale):
+            fixZeroCrossings(x[i + 1:], -2 * single_scale)
+
+        if x[i + 1] < 0 and (x[i + 1] - x[i]) <= (-1.85 * single_scale):
+            fixZeroCrossings(x[i + 1:], 2 * single_scale)
+        y[i] = x[i] + c
+    return y
+
+
+def fixZeroCrossings3dof(x):
+    """Runs `fixZeroCrossing()` for each column signal in the input ndarray `x`
+    
+    Returns the ndarray, with fixed zero crossings on each column signal individually.
+    """
+    return np.transpose([
+        x[:, 0],#np.array(fixZeroCrossings(x[:, 0].tolist())),
+        x[:, 1],#np.array(fixZeroCrossings(x[:, 1].tolist())),
+        np.array(fixZeroCrossings(x[:, 2].tolist())),
+    ])
+
+
 def groupClosePointsIntoRanges(idxs, th=2):
     """Return list of ranges of sequential points grouped by closeness,
     whose changes are separated by values greater than `th`

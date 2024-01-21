@@ -4,7 +4,8 @@ from datafile import constructJumpLine
 from tile import Tile
 from track import Track
 from jump import Jump
-from signal_processing import identifyRangesBelowTH, mean, std
+from signal_processing import identifyRangesBelowTH
+import numpy as np
 
 class TileTrack(Tile):
     def __init__(
@@ -24,6 +25,8 @@ class TileTrack(Tile):
             corrected_alt: list[float],
             file_train: TextIOWrapper,
             identifyKinematics=True,
+            euler6=None,
+            euler9=None,
     ):
         super().__init__(
             time=time,
@@ -33,7 +36,8 @@ class TileTrack(Tile):
             pres=pres,
             temp=temp,
             hum=hum,
-            corrected_alt=corrected_alt
+            corrected_alt=corrected_alt,
+            euler6=euler6, euler9=euler9
         )
         # set track metadata from the parent a50 track
         self.track = Track(

@@ -89,5 +89,7 @@ def syncTile(
         pres = tile.pres,
         temp = tile.temp,
         hum = tile.hum,
-        corrected_alt=corrected_tile_alt
+        corrected_alt=corrected_tile_alt,
+        euler6=tile.euler6,
+        euler9=tile.euler9,
     )
