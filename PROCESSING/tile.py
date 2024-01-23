@@ -1,6 +1,5 @@
-from jump import JUMP_THRESHOLD_MG
-from signal_processing import makeContinuousRange3dof, length, lowpass
-import imufusion
+from imu import IMU
+from signal_processing import length, lowpass
 import numpy as np
 
 class Tile:
@@ -14,11 +13,8 @@ class Tile:
             temp: list[float],
             hum: list[float],
             corrected_alt: list[float],
-            euler6=None,
-            euler9=None,
-            continuous_roll=False,
-            continuous_pitch=False,
-            continuous_yaw=True,
+            imu6=None,
+            imu9=None,
     ):
         self.time = time
         self.ax = ax
@@ -34,25 +30,20 @@ class Tile:
         self.temp = temp
         self.hum = hum
 
-        # set from the sync, using the ground truth to account constant offsets
         self.corrected_alt = corrected_alt
+        """Corrected/offset alt set from sync, using the ground truth to account constant offsets"""
 
-        # set imu signals with corrections if requested, unless signal is overrides from init
-        self.euler6 = makeContinuousRange3dof(
-            self.computeEuler6(),
-            fix_0=continuous_roll,
-            fix_1=continuous_pitch,
-            fix_2=continuous_yaw) if euler6 is None else euler6
-        self.euler9 = makeContinuousRange3dof(
-            self.computeEuler9(),
-            fix_0=continuous_roll,
-            fix_1=continuous_pitch,
-            fix_2=continuous_yaw) if euler9 is None else euler9
+        self.imu6 = IMU([ax, ay, az], [gx, gy, gz]) if imu6 is None else imu6
+        """6dof based orientation"""
 
-        # self.euler6_norm = [np.linalg.norm(self.euler6[row, :]) for row in range(self.euler6.shape[0])]
-        # self.euler9_norm = [np.linalg.norm(self.euler9[row, :]) for row in range(self.euler9.shape[0])]
-        self.euler6_length = length(self.euler6[:, 0], self.euler6[:, 1], self.euler6[:, 2])
-        self.euler9_length = length(self.euler9[:, 0], self.euler9[:, 1], self.euler9[:, 2])
+        self.imu9 = IMU([ax, ay, az], [gx, gy, gz], [mx, my, mz]) if imu9 is None else imu9
+        """9dof based orientation"""
+
+        self.qSB6 = np.array([1., 0., 0., 0.])
+        """6dof sensor frame to boot frame rotation, [w, x, y, z]."""
+
+        self.qSB9 = np.array([1., 0., 0., 0.])
+        """9dof sensor frame to boot frame rotation, [w, x, y, z]."""
 
 
     def __printProps__(self, prefix="\t"):
@@ -97,48 +88,9 @@ class Tile:
         return length(self.ax, self.ay, self.az)
 
 
-    def computeEuler9(self):
-        """IMU Sensor Fusion data based on 9dof sensors, (accel, gyro, mag).
-        
-        Gyro angles corrected with gravity vector from the accelerometer frame & 
-        heading signals from the magnetometer frame.
-        """
-        offset = imufusion.Offset(100)
-        ahrs = imufusion.Ahrs()
-        ahrs.settings = imufusion.Settings(imufusion.CONVENTION_NWU,  # convention
-                                   0.5,  # gain
-                                   2000,  # gyroscope range
-                                   10,  # acceleration rejection
-                                   10,  # magnetic rejection
-                                   5 * 100)  # recovery trigger period = 5 seconds
-
-        euler = np.empty((len(self.time), 3))
-        for i in range(len(self.time)):
-            gyro = np.divide([self.gx[i], self.gy[i], self.gz[i]], 1000) #mdps -> dps
-            offset_gyro = offset.update(gyro)
-            accel = np.divide([self.ax[i], self.ay[i], self.az[i]], 1000) #mG -> G
-            mag = np.divide([self.mx[i], self.my[i], self.mz[i]], 10) # mgauss -> uT
-
-            ahrs.update(offset_gyro, accel, mag, 1 / 100)
-            euler[i] = ahrs.quaternion.to_euler()
-        return euler
-
-
-    def computeEuler6(self):
-        """IMU Sensor Fusion data based on 6dof sensors, (accel, gyro).
-        
-        Gyro angles corrected with gravity vector from the accelerometer frame.
-        """
-        ahrs = imufusion.Ahrs()
-
-        euler = np.empty((len(self.time), 3))
-        for i in range(len(self.time)):
-            gyro = np.divide([self.gx[i], self.gy[i], self.gz[i]], 1000) #mdps -> dps
-            accel = np.divide([self.ax[i], self.ay[i], self.az[i]], 1000) #mG -> G
-            ahrs.update_no_magnetometer(gyro, accel, 1 / 100)  # 100 Hz sample rate
-            euler[i] = ahrs.quaternion.to_euler()
-        return euler
-
+    @property
+    def imu6_b(self):
+        pass
 
     def ax_lpf(self, Wn, ftype):
         """Lowpass filtered accelerometer data for x"""
@@ -162,3 +114,10 @@ class Tile:
             self.ay_lpf(Wn=Wn, ftype=ftype), 
             self.az_lpf(Wn=Wn, ftype=ftype)
         )
+
+
+    def setQsbFromRange(self, r):
+        """Set the rotation quaternion to rotate the sensor frame into the boot frame."""
+        self.qSB6 = self.imu6.avgQuat(r)
+        self.qSB9 = self.imu9.avgQuat(r)
+

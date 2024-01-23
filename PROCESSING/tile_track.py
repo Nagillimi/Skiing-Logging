@@ -1,10 +1,11 @@
 from datetime import date, time
 from io import TextIOWrapper
+from imu import IMU
 from datafile import constructJumpLine
 from tile import Tile
 from track import Track
 from jump import Jump, JUMP_THRESHOLD_MG
-from signal_processing import identifyRangesBelowTH
+from signal_processing import identifyRangesBelowTH, makeContinuousRange3dof
 import numpy as np
 
 class TileTrack(Tile):
@@ -15,29 +16,31 @@ class TileTrack(Tile):
             tod: time,
             duration: int,
             length: int,
-            time: list[float],
-            ax: list[int], ay: list[int], az: list[int],
-            gx: list[int], gy: list[int], gz: list[int],
-            mx: list[int], my: list[int], mz: list[int],
-            pres: list[float],
-            temp: list[float],
-            hum: list[float],
-            corrected_alt: list[float],
+            parent_tile: Tile,
+            range: list,
             file_train: TextIOWrapper,
-            identifyKinematics=True,
-            euler6=None,
-            euler9=None,
+            identifyKinematics: bool,
     ):
+        trimmed_imu6 = self.trimIMU(parent_tile.imu6, range)
+        trimmed_imu9 = self.trimIMU(parent_tile.imu9, range)
+
         super().__init__(
-            time=time,
-            ax=ax, ay=ay, az=az,
-            gx=gx, gy=gy, gz=gz,
-            mx=mx, my=my, mz=mz,
-            pres=pres,
-            temp=temp,
-            hum=hum,
-            corrected_alt=corrected_alt,
-            euler6=euler6, euler9=euler9
+            time=parent_tile.time[range[0]:range[1]],
+            ax=parent_tile.ax[range[0]:range[1]],
+            ay=parent_tile.ay[range[0]:range[1]],
+            az=parent_tile.az[range[0]:range[1]],
+            gx=parent_tile.gx[range[0]:range[1]],
+            gy=parent_tile.gy[range[0]:range[1]],
+            gz=parent_tile.gz[range[0]:range[1]],
+            mx=parent_tile.mx[range[0]:range[1]],
+            my=parent_tile.my[range[0]:range[1]],
+            mz=parent_tile.mz[range[0]:range[1]],
+            pres=parent_tile.pres[range[0]:range[1]],
+            temp=parent_tile.temp[range[0]:range[1]],
+            hum=parent_tile.hum[range[0]:range[1]],
+            corrected_alt=parent_tile.corrected_alt[range[0]:range[1]],
+            imu6=trimmed_imu6,
+            imu9=trimmed_imu9,
         )
         # set track metadata from the parent a50 track
         self.track = Track(
@@ -58,6 +61,50 @@ class TileTrack(Tile):
 
     def __printProps__(self, prefix="\t"):
         return self.track.__printProps__(prefix)
+
+
+    @property
+    def euler6_b(self):
+        """Rotated IMU data (basaed on 6dof) put with reference to the boot frame.
+        
+        Set from the detected still phases at the lift tops.
+        """
+        return makeContinuousRange3dof(
+            np.array([self.imu6.computeEuler(quat=q) for q in self.imu6.tareOrientation(self.qSB6)]),
+            fix_0=False,
+            fix_1=False,
+            fix_2=True,
+        )
+
+
+    @property
+    def euler9_b(self):
+        """Rotated IMU data (basaed on 9dof) put with reference to the boot frame.
+        
+        Set from the detected still phases at the lift tops.
+        """
+        return makeContinuousRange3dof(
+            np.array([self.imu9.computeEuler(quat=q) for q in self.imu9.tareOrientation(self.qSB9)]),
+            fix_0=False,
+            fix_1=False,
+            fix_2=True,
+        )
+
+
+    def trimIMU(self, imu: IMU, r):
+        """Trims the existing orientation signals from the parent tile object.
+        
+        Doesn't recompute the orientation data based on trimmed motion data since it'd consume
+        more processing, 
+        """
+        trimmedIMU = IMU([], [], run=False)
+        trimmedIMU.quat = imu.quat[r[0]:r[1]]
+        trimmedIMU.euler = imu.euler[r[0]:r[1], :]
+        trimmedIMU.euler_norm = imu.euler_norm[r[0]:r[1]]
+        trimmedIMU.accel = imu.accel[r[0]:r[1], :]
+        trimmedIMU.gyro = imu.gyro[r[0]:r[1], :]
+        trimmedIMU.mag = imu.mag[r[0]:r[1], :] if imu.mag is not None else None
+        return trimmedIMU
 
 
     def logJumpData(self, override_th=None):

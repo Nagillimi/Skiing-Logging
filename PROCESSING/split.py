@@ -49,33 +49,19 @@ def splitTileIntoDownhillTileTracks(
     file_train = createJumpDataFile(f'logs/tile-{truth[0].date}-jumps-{JUMP_THRESHOLD_MG}mG.csv')
 
     # split by these timestamps into [Tile]
-    tile_runs = []
-    for i in range(len(tile_start_idxs)):
-        tile_runs.append(
-            TileTrack(
-                track_type=truth[i].track_type,
-                date=truth[i].date,
-                tod=truth[i].tod,
-                duration=truth[i].duration,
-                length=truth[i].length,
-                time=tile_sync.time[tile_start_idxs[i]:tile_stop_idxs[i]],
-                ax=tile_sync.ax[tile_start_idxs[i]:tile_stop_idxs[i]],
-                ay=tile_sync.ay[tile_start_idxs[i]:tile_stop_idxs[i]],
-                az=tile_sync.az[tile_start_idxs[i]:tile_stop_idxs[i]],
-                gx=tile_sync.gx[tile_start_idxs[i]:tile_stop_idxs[i]],
-                gy=tile_sync.gy[tile_start_idxs[i]:tile_stop_idxs[i]],
-                gz=tile_sync.gz[tile_start_idxs[i]:tile_stop_idxs[i]],
-                mx=tile_sync.mx[tile_start_idxs[i]:tile_stop_idxs[i]],
-                my=tile_sync.my[tile_start_idxs[i]:tile_stop_idxs[i]],
-                mz=tile_sync.mz[tile_start_idxs[i]:tile_stop_idxs[i]],
-                pres=tile_sync.pres[tile_start_idxs[i]:tile_stop_idxs[i]],
-                temp=tile_sync.temp[tile_start_idxs[i]:tile_stop_idxs[i]],
-                hum=tile_sync.hum[tile_start_idxs[i]:tile_stop_idxs[i]],
-                file_train=file_train,
-                corrected_alt=tile_sync.corrected_alt[tile_start_idxs[i]:tile_stop_idxs[i]],
-                euler6=tile_sync.euler6[tile_start_idxs[i]:tile_stop_idxs[i], :],
-                euler9=tile_sync.euler9[tile_start_idxs[i]:tile_stop_idxs[i], :],
-            )
-        )
+    tile_runs = [
+        TileTrack(
+            track_type=truth[i].track_type,
+            date=truth[i].date,
+            tod=truth[i].tod,
+            duration=truth[i].duration,
+            length=truth[i].length,
+            parent_tile=tile_sync,
+            range=[tile_start_idxs[i], tile_stop_idxs[i]],
+            file_train=file_train,
+            identifyKinematics=True,
+        ) for i in range(len(tile_start_idxs))
+    ]
+
     file_train.close()
     return tile_runs
