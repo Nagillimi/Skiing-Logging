@@ -1,5 +1,5 @@
 import os
-from jump import Jump
+from jump import JUMP_THRESHOLD_MG
 from signal_processing import mean, std
 
 JUMP_HEADER = 'mG_th,'\
@@ -56,7 +56,7 @@ def createJumpDataFile(name):
 
 
 def constructJumpLine(jump):
-    line = f'{Jump.mGThreshold()},'
+    line = f'{JUMP_THRESHOLD_MG},'
     line += f'{jump.lowG_range[0]},'
     line += f'{jump.lowG_range[1]},'
     line += f'{jump.lowG_range[1] - jump.lowG_range[0]},'

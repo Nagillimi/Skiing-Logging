@@ -3,7 +3,7 @@ from io import TextIOWrapper
 from datafile import constructJumpLine
 from tile import Tile
 from track import Track
-from jump import Jump
+from jump import Jump, JUMP_THRESHOLD_MG
 from signal_processing import identifyRangesBelowTH
 import numpy as np
 
@@ -72,7 +72,7 @@ class TileTrack(Tile):
         """
         lowG_els = identifyRangesBelowTH(
             self.mG_lpf(),
-            Jump.mGThreshold() if override_th is None else override_th
+            JUMP_THRESHOLD_MG if override_th is None else override_th
         )
         self.jumps = [Jump(el, self.mG_lpf(), self.mG, self.gyro) for el in lowG_els]
         self.logJumpData(override_th)

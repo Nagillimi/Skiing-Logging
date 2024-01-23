@@ -1,6 +1,9 @@
 from stat_tests import StatTests as ST
 from signal_processing import maxIndex, mean, minIndex, trapz, std
 
+JUMP_THRESHOLD_MG = 600
+"""The static low mG threshold to trigger jump identification."""
+
 class Jump:
     def __init__(self, lowG_range: [], mG_lpf: [], mG: [], gyro: [], print_out=False) -> None:
         self.lowG_range = lowG_range
@@ -11,12 +14,6 @@ class Jump:
         self.tests_passed = 0
         self.total_tests = 0
         self.identify(print_out=print_out)
-
-
-    @staticmethod
-    def mGThreshold():
-        """The static low mG threshold to trigger jump identification."""
-        return 600
 
 
     @property
@@ -83,7 +80,7 @@ class Jump:
 
             # now search right of `min_idx` to find the point where G's increase, signifying landing
             for i in range(len(self.mG_lpf[self.min_idx:-1])):
-                if self.mG_lpf[self.min_idx + i] > Jump.mGThreshold():
+                if self.mG_lpf[self.min_idx + i] > JUMP_THRESHOLD_MG:
                     self.touch_idx = self.min_idx + i
                     break
 

@@ -1,4 +1,4 @@
-from jump import Jump
+from jump import JUMP_THRESHOLD_MG
 from datafile import createJumpDataFile
 from tile_track import TileTrack
 from decorators import printTracks
@@ -46,7 +46,7 @@ def splitTileIntoDownhillTileTracks(
     tile_start_idxs = [tile_sync.time.index(split[0]) for split in ts_splits]
     tile_stop_idxs = [tile_sync.time.index(split[1]) for split in ts_splits]
 
-    file_train = createJumpDataFile(f'logs/tile-{truth[0].date}-jumps-{Jump.mGThreshold()}mG.csv')
+    file_train = createJumpDataFile(f'logs/tile-{truth[0].date}-jumps-{JUMP_THRESHOLD_MG}mG.csv')
 
     # split by these timestamps into [Tile]
     tile_runs = []

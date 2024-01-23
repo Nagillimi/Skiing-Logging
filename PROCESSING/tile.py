@@ -1,4 +1,4 @@
-from jump import Jump
+from jump import JUMP_THRESHOLD_MG
 from signal_processing import makeContinuousRange3dof, length, lowpass
 import imufusion
 import numpy as np

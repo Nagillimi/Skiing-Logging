@@ -1,4 +1,4 @@
-from jump import Jump
+from jump import JUMP_THRESHOLD_MG
 from signal_processing import length
 from track import Track
 from tile import Tile
@@ -121,7 +121,7 @@ def plotJumpAnalysis(track: TileTrack, jump_idx: int, run_number=1):
     fig, ax = plt.subplots(3, figsize=(8, 6))
 
     ax[0].plot(track.time[i1:i2], mg_filt[i1:i2])
-    ax[0].plot(track.time[i1:i2], [Jump.mGThreshold() for _ in mg_filt[i1:i2]], 'k--')
+    ax[0].plot(track.time[i1:i2], [JUMP_THRESHOLD_MG for _ in mg_filt[i1:i2]], 'k--')
     markupWithJumpStages(ax[0])
     ax[0].set_title(f'{round(jump.confidence)}% | Run {run_number} Jump {jump_idx + 1} Tile Filtered mG-force (& threshold)', wrap=True)
 
