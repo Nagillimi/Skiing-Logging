@@ -1,5 +1,5 @@
 from jump import Jump
-from signal_processing import fixZeroCrossings3dof, length, lowpass
+from signal_processing import makeContinuousRange3dof, length, lowpass
 import imufusion
 import numpy as np
 
@@ -16,6 +16,9 @@ class Tile:
             corrected_alt: list[float],
             euler6=None,
             euler9=None,
+            continuous_roll=False,
+            continuous_pitch=False,
+            continuous_yaw=True,
     ):
         self.time = time
         self.ax = ax
@@ -34,16 +37,22 @@ class Tile:
         # set from the sync, using the ground truth to account constant offsets
         self.corrected_alt = corrected_alt
 
-        # set imu signals, allowing override from parent
-        self.euler6 = self.computeEuler6() if euler6 is None else euler6
-        self.euler9 = self.computeEuler9() if euler9 is None else euler9
-        # self.euler6 = fixZeroCrossings3dof(self.euler6)
-        # self.euler9 = fixZeroCrossings3dof(self.euler9)
+        # set imu signals with corrections if requested, unless signal is overrides from init
+        self.euler6 = makeContinuousRange3dof(
+            self.computeEuler6(),
+            fix_0=continuous_roll,
+            fix_1=continuous_pitch,
+            fix_2=continuous_yaw) if euler6 is None else euler6
+        self.euler9 = makeContinuousRange3dof(
+            self.computeEuler9(),
+            fix_0=continuous_roll,
+            fix_1=continuous_pitch,
+            fix_2=continuous_yaw) if euler9 is None else euler9
 
-        self.euler6_norm = [np.linalg.norm(self.euler6[row, :]) for row in range(self.euler6.shape[0])]
-        self.euler9_norm = [np.linalg.norm(self.euler9[row, :]) for row in range(self.euler9.shape[0])]
-        # self.euler6_length = length(self.euler6[:, 0], self.euler6[:, 1], self.euler6[:, 2])
-        # self.euler9_length = length(self.euler9[:, 0], self.euler9[:, 1], self.euler9[:, 2])
+        # self.euler6_norm = [np.linalg.norm(self.euler6[row, :]) for row in range(self.euler6.shape[0])]
+        # self.euler9_norm = [np.linalg.norm(self.euler9[row, :]) for row in range(self.euler9.shape[0])]
+        self.euler6_length = length(self.euler6[:, 0], self.euler6[:, 1], self.euler6[:, 2])
+        self.euler9_length = length(self.euler9[:, 0], self.euler9[:, 1], self.euler9[:, 2])
 
 
     def __printProps__(self, prefix="\t"):

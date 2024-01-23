@@ -14,7 +14,8 @@ def syncTile(
         max_time_search_s=30,
         alt_step=0.1,
         min_alt_start=0,
-        max_alt_search=75):
+        max_alt_search=75,
+    ):
     """synchronizes the tile signals with the stitched a50 tracks
     using the altitude as a ground truth.
 

@@ -1,7 +1,7 @@
-from jump_tests import JumpTests
+from stat_tests import StatTests as ST
 from signal_processing import maxIndex, mean, minIndex, trapz, std
 
-class Jump(JumpTests):
+class Jump:
     def __init__(self, lowG_range: [], mG_lpf: [], mG: [], gyro: [], print_out=False) -> None:
         self.lowG_range = lowG_range
         self.mG_lpf = mG_lpf
@@ -105,23 +105,23 @@ class Jump(JumpTests):
     def runTestSuite(self, print_out=False):
         """Run the test suite. Can toggle individual running here."""
         return [
-            self.testDecreasingTrend(self.mG_lpf, self.air_range, print_out=print_out, header='Test mG_lpf has decreasing trend'),
-            self.testMinSampleCount(self.mG_lpf, self.air_range, print_out=print_out, header='Test mG_lpf has minimum sample count'),
-            self.testMinSampleCount(self.mG_lpf, self.lowG_range, min_count=10, print_out=print_out, header='Test mG_lpf has minimum samples below lowG threshold'),
-            self.testLowerSampleStdDev(self.mG, self.air_range, print_out=print_out, header='Test mG std dev (air time < pop)'),
-            self.testLowerSampleStdDev(self.gyro, self.air_range, print_out=print_out, header='Test gyro std dev (air time < pop)'),
-            self.testLowerSampleMean(self.mG, self.air_range, print_out=print_out, header='Test mG mean (air time < pop)'),
-            # self.testLowerSampleMean(self.gyro, self.air_range, print_out=print_out, header='Test gyro mean (air time < pop)'),
-            self.testLowerSampleStdDev(self.mG, self.air_range, self.landing_range, print_out=print_out, header='Test mG std dev (air time < landing time)'),
-            self.testLowerSampleStdDev(self.gyro, self.air_range, self.landing_range, print_out=print_out, header='Test gyro std dev (air time < landing time)'),
-            self.testLowerSampleMean(self.mG, self.air_range, self.landing_range, print_out=print_out, header='Test mG mean (air time < landing time)'),
-            # self.testLowerSampleMean(self.gyro, self.air_range, self.landing_range, print_out=print_out, header='Test gyro mean (air time < landing time)'),
-            self.testLargerSampleStdDev(self.mG, self.landing_range, print_out=print_out, header='Test mG std dev (landing time > pop)'),
-            self.testLargerSampleStdDev(self.gyro, self.landing_range, print_out=print_out, header='Test gyro std dev (landing time > pop)'),
-            self.testLargerSampleMean(self.mG, self.landing_range, print_out=print_out, header='Test mG mean (landing time > pop)'),
-            self.testLargerSampleMean(self.gyro, self.landing_range, print_out=print_out, header='Test gyro mean (landing time > pop)'),
-            self.testLargeImpulse(self.mG, self.air_range, print_out=print_out, header='Test landing time mG contains large impulse > (3 * std dev)'),
-            self.testTimingOfLargeImpulse(self.mG, self.landing_range, print_out=print_out, header='Test that large impulse occurs close to landing time'),
+            ST.testDecreasingTrend(self.mG_lpf, self.air_range, print_out=print_out, header='Test mG_lpf has decreasing trend'),
+            ST.testMinSampleCount(self.mG_lpf, self.air_range, print_out=print_out, header='Test mG_lpf has minimum sample count'),
+            ST.testMinSampleCount(self.mG_lpf, self.lowG_range, min_count=10, print_out=print_out, header='Test mG_lpf has minimum samples below lowG threshold'),
+            ST.testLowerSampleStdDev(self.mG, self.air_range, print_out=print_out, header='Test mG std dev (air time < pop)'),
+            ST.testLowerSampleStdDev(self.gyro, self.air_range, print_out=print_out, header='Test gyro std dev (air time < pop)'),
+            ST.testLowerSampleMean(self.mG, self.air_range, print_out=print_out, header='Test mG mean (air time < pop)'),
+            # ST.testLowerSampleMean(self.gyro, self.air_range, print_out=print_out, header='Test gyro mean (air time < pop)'),
+            ST.testLowerSampleStdDev(self.mG, self.air_range, self.landing_range, print_out=print_out, header='Test mG std dev (air time < landing time)'),
+            ST.testLowerSampleStdDev(self.gyro, self.air_range, self.landing_range, print_out=print_out, header='Test gyro std dev (air time < landing time)'),
+            ST.testLowerSampleMean(self.mG, self.air_range, self.landing_range, print_out=print_out, header='Test mG mean (air time < landing time)'),
+            # ST.testLowerSampleMean(self.gyro, self.air_range, self.landing_range, print_out=print_out, header='Test gyro mean (air time < landing time)'),
+            ST.testLargerSampleStdDev(self.mG, self.landing_range, print_out=print_out, header='Test mG std dev (landing time > pop)'),
+            ST.testLargerSampleStdDev(self.gyro, self.landing_range, print_out=print_out, header='Test gyro std dev (landing time > pop)'),
+            ST.testLargerSampleMean(self.mG, self.landing_range, print_out=print_out, header='Test mG mean (landing time > pop)'),
+            ST.testLargerSampleMean(self.gyro, self.landing_range, print_out=print_out, header='Test gyro mean (landing time > pop)'),
+            ST.testLargeImpulse(self.mG, self.air_range, print_out=print_out, header='Test landing time mG contains large impulse > (3 * std dev)'),
+            ST.testTimingOfLargeImpulse(self.mG, self.landing_range, print_out=print_out, header='Test that large impulse occurs close to landing time'),
         ]
     # in the future, can return values and parameters for each test. For ML
     

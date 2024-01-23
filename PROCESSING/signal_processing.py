@@ -19,7 +19,7 @@ def diff(x1, x2):
     return [x1[i] - x2[i] for i in range(len(x1))]
 
 
-def fixZeroCrossings(x, c=0, single_scale=180):
+def makeContinuousRange(x, m=0.5, full_scale=360):
     """Fixes the zero crossings in a signal that is previously clamped to a 
     single scale range of `single_scale`.
 
@@ -28,50 +28,60 @@ def fixZeroCrossings(x, c=0, single_scale=180):
 
     This is useful for graphs when trying to test for stillness, since a zero crossing would be a massive
     outlier.
-    """
-    # y = x
-    # for i in range(len(x)):
-    #     if i == 0: continue
-    #     if x[i] > 0 and x[i] - x[i - 1] >= 1.85 * single_scale:
-    #         # sub cm from xi and all following el until the opposite crossing
-    #         for j in range(len(x) - i):
-    #             y[i + j] = x[i + j] - 2 * single_scale
-    #             if x[i] < 0 and x[i] - x[i - 1] <= -1.85 * single_scale:
-    #                 break
-    #         continue
 
-    #     if x[i] < 0 and x[i] - x[i - 1] <= -1.85 * single_scale:
-    #         # sub cm from xi and all following el until the opposite crossing
-    #         for j in range(len(x) - i):
-    #             y[i + j] = x[i + j] + 2 * single_scale
-    #             if x[i] > 0 and x[i] - x[i - 1] >= 1.85 * single_scale:
-    #                 break
-    #         continue
+    Returns
+    -------
+    unclamped signal `x` and the observed skipping indices
+    """
+    y = x
+    skips = []
+    for i in range(len(x)):
+        if i == 0: continue
+        if x[i] > x[i - 1] and abs(x[i] - x[i - 1]) >= (m * full_scale):
+            skips.append([i - 1, i])
+            for j in range(len(x) - i):
+                y[i + j] = x[i + j] - full_scale
+                if x[i] < x[i - 1] and abs(x[i] - x[i - 1]) >= (m * full_scale):
+                    skips.append([i - 1, i])
+                    break
+            continue
+
+        if x[i] < x[i - 1] and abs(x[i] - x[i - 1]) >= (m * full_scale):
+            skips.append([i - 1, i])
+            for j in range(len(x) - i):
+                y[i + j] = x[i + j] + full_scale
+                if x[i] > x[i - 1] and abs(x[i] - x[i - 1]) >= (m * full_scale):
+                    skips.append([i - 1, i])
+                    break
+            continue
+    return y, skips
+
+    # print(len(x))
+    # m = 0.95
+    # y = x
+    # for i in range(len(x) - 1):
+    #     # if i == 0: continue
+    #     y[i] = x[i] + c
+    #     if x[i + 1] > 0 and (x[i + 1] - x[i]) >= (m * full_scale):
+    #         fixZeroCrossings(x[i + 1:], -full_scale)
+
+    #     if x[i + 1] < 0 and (x[i + 1] - x[i]) <= -(m * full_scale):
+    #         fixZeroCrossings(x[i + 1:], full_scale)
     # return y
 
-    print(len(x))
 
-    y = x
-    for i in range(len(x) - 1):
-        # if i == 0: continue
-        if x[i + 1] > 0 and (x[i + 1] - x[i]) >= (1.85 * single_scale):
-            fixZeroCrossings(x[i + 1:], -2 * single_scale)
-
-        if x[i + 1] < 0 and (x[i + 1] - x[i]) <= (-1.85 * single_scale):
-            fixZeroCrossings(x[i + 1:], 2 * single_scale)
-        y[i] = x[i] + c
-    return y
-
-
-def fixZeroCrossings3dof(x):
+def makeContinuousRange3dof(x, fix_0=True, fix_1=True, fix_2=True):
     """Runs `fixZeroCrossing()` for each column signal in the input ndarray `x`
     
     Returns the ndarray, with fixed zero crossings on each column signal individually.
     """
+    rollFix, roll_skips = makeContinuousRange(x[:, 0].tolist(), full_scale=180)
+    pitchFix, pitch_skips = makeContinuousRange(x[:, 1].tolist(), full_scale=180)
+    yawFix, yaw_skips = makeContinuousRange(x[:, 2].tolist())
     return np.transpose([
-        x[:, 0],#np.array(fixZeroCrossings(x[:, 0].tolist())),
-        x[:, 1],#np.array(fixZeroCrossings(x[:, 1].tolist())),
-        np.array(fixZeroCrossings(x[:, 2].tolist())),
+        np.array(rollFix) if len(roll_skips) > 0 and fix_0 is True else x[:, 0],
+        np.array(pitchFix) if len(pitch_skips) > 0 and fix_1 is True else x[:, 1],
+        np.array(yawFix) if len(yaw_skips) > 0 and fix_2 is True else x[:, 2],
     ])
 
 

@@ -72,7 +72,9 @@ def splitTileIntoDownhillTileTracks(
                 temp=tile_sync.temp[tile_start_idxs[i]:tile_stop_idxs[i]],
                 hum=tile_sync.hum[tile_start_idxs[i]:tile_stop_idxs[i]],
                 file_train=file_train,
-                corrected_alt=tile_sync.corrected_alt[tile_start_idxs[i]:tile_stop_idxs[i]]
+                corrected_alt=tile_sync.corrected_alt[tile_start_idxs[i]:tile_stop_idxs[i]],
+                euler6=tile_sync.euler6[tile_start_idxs[i]:tile_stop_idxs[i], :],
+                euler9=tile_sync.euler9[tile_start_idxs[i]:tile_stop_idxs[i], :],
             )
         )
     file_train.close()

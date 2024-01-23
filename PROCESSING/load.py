@@ -13,7 +13,11 @@ def load_2022_12_24(print_out=True):
         decode_tile("../DATA/2022_12_24/Mt Morin Heights/Tile/SENS000.CSV", print_out=print_out, header="Tile Full Recording")
     
 
-def load_2022_12_26(use_alt_lpf=True, split_tile=True, print_out=True):
+def load_2022_12_26(
+        use_alt_lpf=True,
+        split_tile=True,
+        print_out=True,
+    ):
     """Imports all datasets from 2022, 12, 26 at Olympia.
     
     Includes the sync and split for Tile data.
@@ -34,14 +38,19 @@ def load_2022_12_26(use_alt_lpf=True, split_tile=True, print_out=True):
         max_time_search_s=30,
         alt_step=0.25,
         min_alt_start=10,
-        max_alt_search=50)
+        max_alt_search=50,
+    )
     
     if split_tile:
         tile = splitTileIntoDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
 
 
-def load_2022_12_27(use_alt_lpf=True, split_tile=True, print_out=True):
+def load_2022_12_27(
+        use_alt_lpf=True,
+        split_tile=True,
+        print_out=True,
+    ):
     """Imports all datasets from 2022, 12, 27 at Morin Heights.
     
     Includes the sync and split for Tile data.
@@ -62,14 +71,19 @@ def load_2022_12_27(use_alt_lpf=True, split_tile=True, print_out=True):
         max_time_search_s=30,
         alt_step=0.25,
         min_alt_start=0,
-        max_alt_search=20)
+        max_alt_search=20,
+    )
     
     if split_tile:
         tile = splitTileIntoDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
 
 
-def load_2023_12_30(use_alt_lpf=True, split_tile=True, print_out=True):
+def load_2023_12_30(
+        use_alt_lpf=True,
+        split_tile=True,
+        print_out=True,
+    ):
     """Imports all datasets from 2023, 12, 30 at Olympia.
     
     Includes the sync and split for Tile data.
@@ -90,14 +104,19 @@ def load_2023_12_30(use_alt_lpf=True, split_tile=True, print_out=True):
         max_time_search_s=30,
         alt_step=0.25,
         min_alt_start=120,
-        max_alt_search=140)
+        max_alt_search=140,
+    )
     
     if split_tile:
         tile = splitTileIntoDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
 
 
-def load_2023_12_31(use_alt_lpf=True, split_tile=True, print_out=True):
+def load_2023_12_31(
+        use_alt_lpf=True,
+        split_tile=True,
+        print_out=True,
+    ):
     """Imports all datasets from 2023, 12, 31 at St. Sauveur.
     
     Includes the sync and split for Tile data.
@@ -118,14 +137,19 @@ def load_2023_12_31(use_alt_lpf=True, split_tile=True, print_out=True):
         max_time_search_s=5,
         alt_step=0.25,
         min_alt_start=40,
-        max_alt_search=45)
+        max_alt_search=45,
+    )
     
     if split_tile:
         tile = splitTileIntoDownhillTileTracks(tile, a50, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
 
 
-def load_2024_01_01(use_alt_lpf=True, split_tile=True, print_out=True):
+def load_2024_01_01(
+        use_alt_lpf=True,
+        split_tile=True,
+        print_out=True,
+    ):
     """Imports all datasets from 2024, 1, 1 at Morin Heights.
     
     Includes the sync and split for Tile data.
@@ -146,7 +170,8 @@ def load_2024_01_01(use_alt_lpf=True, split_tile=True, print_out=True):
         max_time_search_s=30,
         alt_step=0.25,
         min_alt_start=0,
-        max_alt_search=20)
+        max_alt_search=20,
+    )
     
     if split_tile:
         tile = splitTileIntoDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")

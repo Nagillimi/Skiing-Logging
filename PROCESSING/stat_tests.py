@@ -1,24 +1,46 @@
 from decorators import printTestResults
 from signal_processing import mean, std, maxIndex
 
-class JumpTests:
-    def __init__(self) -> None:
-        pass
-
-
-    def assertWindow(self, x, r):
+class StatTests:
+    @staticmethod
+    def assertWindow(x, r):
         window = x[r[0]:r[1]]
         if not len(window) > 0:
             return window, False
         return window, True
 
+
     @printTestResults
-    def testDecreasingTrend(self, x, r, th=1, print_out=False, header=""):
+    @staticmethod
+    def testContainsLocalPeak(x, r, print_out=False, header=""):
+        """tests the input `x` signal for a peak inside the range `r`, excluding the endponits.
+
+        The max will need to be higher than `th` which is default to `5`
+        
+        if so, returns `True` else `False`
+        """
+        window, isValid = StatTests.assertWindow(x, r)
+        if not isValid:
+            return False
+
+        max_window = max(window)
+        head = x[r[0]]
+        tail = x[r[1]]
+        spread = max_window - min(window)
+        if print_out: print('\t', head, ' < ', max_window, ' < ', tail, '?', sep='')
+        if head < max_window and max_window > tail:
+            return True
+        return False
+
+
+    @printTestResults
+    @staticmethod
+    def testDecreasingTrend(x, r, th=1, print_out=False, header=""):
         """tests the input `x` signal for an overall decreasing trend
         
         if so, returns `True` else `False`
         """
-        window, isValid = self.assertWindow(x, r)
+        window, isValid = StatTests.assertWindow(x, r)
         if not isValid:
             return False
         
@@ -30,8 +52,9 @@ class JumpTests:
 
 
     @printTestResults
-    def testMinSampleCount(self, x, r, min_count=50, print_out=False, header=""):
-        window, isValid = self.assertWindow(x, r)
+    @staticmethod
+    def testMinSampleCount(x, r, min_count=50, print_out=False, header=""):
+        window, isValid = StatTests.assertWindow(x, r)
         if not isValid:
             return False
         
@@ -43,12 +66,13 @@ class JumpTests:
     
 
     @printTestResults
-    def testLowerSampleStdDev(self, x, r, against_other_r=None, print_out=False, header=""):
+    @staticmethod
+    def testLowerSampleStdDev(x, r, against_other_r=None, print_out=False, header=""):
         """tests the input `x` signal for a smaller sample standard deviation vs the population.
         
         Unless `against_other_r` is passed, where the sample will test against it instead.
         """
-        window, isValid = self.assertWindow(x, r)
+        window, isValid = StatTests.assertWindow(x, r)
         if not isValid:
             return False
         
@@ -60,12 +84,13 @@ class JumpTests:
 
 
     @printTestResults
-    def testLargerSampleStdDev(self, x, r, against_other_r=None, print_out=False, header=""):
+    @staticmethod
+    def testLargerSampleStdDev(x, r, against_other_r=None, print_out=False, header=""):
         """tests the input `x` signal for a larger sample standard deviation vs the population.
         
         Unless `against_other_r` is passed, where the sample will test against it instead.
         """
-        window, isValid = self.assertWindow(x, r)
+        window, isValid = StatTests.assertWindow(x, r)
         if not isValid:
             return False
         
@@ -77,12 +102,13 @@ class JumpTests:
 
 
     @printTestResults
-    def testLowerSampleMean(self, x, r, against_other_r=None, print_out=False, header=""):
+    @staticmethod
+    def testLowerSampleMean(x, r, against_other_r=None, print_out=False, header=""):
         """tests the input `x` signal for a smaller sample mean vs the population.
         
         Unless `against_other_r` is passed, where the sample will test against it instead.
         """
-        window, isValid = self.assertWindow(x, r)
+        window, isValid = StatTests.assertWindow(x, r)
         if not isValid:
             return False
         
@@ -94,12 +120,13 @@ class JumpTests:
 
 
     @printTestResults
-    def testLargerSampleMean(self, x, r, against_other_r=None, print_out=False, header=""):
+    @staticmethod
+    def testLargerSampleMean(x, r, against_other_r=None, print_out=False, header=""):
         """tests the input `x` signal for a larger sample mean vs the population.
         
         Unless `against_other_r` is passed, where the sample will test against it instead.
         """
-        window, isValid = self.assertWindow(x, r)
+        window, isValid = StatTests.assertWindow(x, r)
         if not isValid:
             return False
         
@@ -111,12 +138,13 @@ class JumpTests:
 
 
     @printTestResults
-    def testLargeImpulse(self, x, r, override_max=None, th=None, print_out=False, header=""):
+    @staticmethod
+    def testLargeImpulse(x, r, override_max=None, th=None, print_out=False, header=""):
         """tests the input `x` signal whether a large impulse occured during the range `r`.
         
-        `th` will override the threshold of the impulse magnitude test, defaults self, to 3 * stddev
+        `th` will override the threshold of the impulse magnitude test, defaults to 3 * stddev
         """
-        window, isValid = self.assertWindow(x, r)
+        window, isValid = StatTests.assertWindow(x, r)
         if not isValid:
             return False
         
@@ -129,12 +157,13 @@ class JumpTests:
 
 
     @printTestResults
-    def testTimingOfLargeImpulse(self, x, r, th=None, print_out=False, header=""):
+    @staticmethod
+    def testTimingOfLargeImpulse(x, r, th=None, print_out=False, header=""):
         """tests the input `x` signal whether a large impulse occured close to the start of the landing range.
         
-        `th` will override the threshold of the impulse magnitude test, defaults self, to 3 * stddev
+        `th` will override the threshold of the impulse magnitude test, defaults to 3 * stddev
         """
-        window, isValid = self.assertWindow(x, r)
+        window, isValid = StatTests.assertWindow(x, r)
         if not isValid:
             return False
 

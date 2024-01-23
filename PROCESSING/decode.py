@@ -105,7 +105,7 @@ def decode_F6P(file, print_out, header):
 
 
 @printTracks
-def decode_tile(file, print_out, header):
+def decode_tile(file, print_out, header, orientation_corrections=[False, False, True]):
     csv = pd.read_csv(file)
 
     tile = Tile(
@@ -122,6 +122,9 @@ def decode_tile(file, print_out, header):
         pres=[float(p) for p in csv.iloc[:, 10].tolist()],
         temp=[float(t) for t in csv.iloc[:, 11].tolist()],
         hum=[float(h) for h in csv.iloc[:, 12].tolist()],
-        corrected_alt=[], # not computed here to avoid confusion with raw_alt() method
+        corrected_alt=[], # not computed here to avoid confusion with raw_alt() method,
+        continuous_roll=orientation_corrections[0],
+        continuous_pitch=orientation_corrections[1],
+        continuous_yaw=orientation_corrections[2],
     )
     return tile
