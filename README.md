@@ -10,15 +10,19 @@ To provide more skiing analytics with an extra wearable placed above the ski boo
 
 ### Signals
 
-- g-force
-- turn count
-- jump count
-- jump distance
-- jump height
-- ski carving angle
-- ski angle of attack
-- skid to carving ratio
-- grf/reaction force power in [Watts]
+- [x] altitude
+- [x] g-force
+- [x] jump count
+- [x] jump distance
+- [x] jump height
+- [ ] turn count
+  - [ ] left vs right
+- [ ] ski carving angle
+- [ ] ski angle of attack
+- [ ] skid to carving ratio
+- [ ] grf/reaction force power in [Watts]
+
+Visit the individual notebooks for the explorations on identifying these signals. For much of these, a machine learning model could be trained to assign weighted parameters of the various statistical elements that define jumps and turns. This is currently being implemented by using the existing identification algorithms to generate data for labelling.
 
 ## Devices
 
@@ -28,9 +32,16 @@ Garmin fenix 6 Pro tracked the activity and represents a more holistic/sport app
 
 STM32 SensorTile.Box tracked linear acceleration, angular velocity, magnetic field vectors, temperature, pressure, and humidity signals approximating the right ski. Timestamps are local and require synchronization (see notebook for more) to properly process with the ground truths. Pressure data is also raw and will require an offset to account for sensor differences, weather, etc. which are assumed to be constant for the entire activity. This device was worn tightly under the right sock above the right ski boot, facing laterally. All data signals were sampled at 100Hz
 
+![ ](pics/20221227_105005.jpg)
+
+For many reasons, I've chose to gitignore the data for this remote.
+
 ## Data
 
-Data was captured for 6 days of skiing, spread across 2 years and 4 hills/resorts, totalling 100-150 runs.
+Data was captured for 6 days of skiing, spread across 2 years and 4 hills/resorts, totalling ~100-150 runs.
+
+- 0-6 jumps per run
+- 30+ turns per run
 
 ### Parsing
 
@@ -50,9 +61,9 @@ After these steps, you'll have synchronized signals from each device, which are 
 
 ### Validation
 
-Not much data crosses over between devices, however we can integrate the 3dof acceleration from the tile and compare it to the a50 & f6p velocities and possibly distance. Note that distance from the other devices is 3d and includes innacuracies in gps position and altitude (baro or mapped).
+Not much data crosses over between devices, however we can integrate the 3dof acceleration from the tile and compare it to the a50 & f6p velocities and possibly distance. Note that distance from the other devices is 3d and includes innacuracies in gps position and altitude (baro or mapped). Plus, many many other polynomials are neglected with this integration into velocity, friction, lift & drag, angular acceleration, etc. See the research-topics notebook for more.
 
-- [ ] internal integration method to calculate tile velocity (& distance maybe)
+- [x] internal integration method to calculate tile velocity (& distance maybe)
 
 ### SensorTile Algorithms
 
@@ -66,4 +77,4 @@ Added features are aimed to be as low powered as possible, focus on obtaining re
 
 But, for startes a full 6dof and 9dof orientation will be implemented- hopefully leading to correlations in raw signal patterns.
 
-- [ ] orientation algorithms for tile. Not aimed to be in the full wearable, so use a library.
+- [x] orientation algorithms for tile. Not aimed to be in the full wearable, so use a library.

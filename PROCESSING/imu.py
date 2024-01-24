@@ -1,6 +1,6 @@
 import imufusion
 import numpy as np
-from quat import quatMult
+from quat import quatMult, quatToEuler
 from signal_processing import makeContinuousRange3dof
 import math 
 
@@ -82,7 +82,7 @@ class IMU:
             else:
                 self.ahrs.update(offset_gyro, self.accel[i], self.mag[i], 1 / self.fs)
             q = self.ahrs.quaternion
-            quat[i] = np.array([q.w, q.x, q.y, q.z])
+            quat[i] = [q.w, q.x, q.y, q.z]
         return quat
     
 
@@ -90,17 +90,8 @@ class IMU:
     def computeEuler(self, cts_yaw=True, quat=None):
         """Gets the euler data from the orientatio quaternion, 
         assuming yaw data in a continuous range otherwise set `cts_yaw` to False."""
-        euler = np.empty((self.accel.shape[0], 3))
-        for i, q in enumerate(self.quat if quat is None else quat):
-            qw = q[0]; qx = q[1]; qy = q[2]; qz = q[3]
-            halfMinusQy2 = 0.5 - qy**2
-            euler[i] = [
-                math.degrees(math.atan2(qw*qx + qy*qz, halfMinusQy2 - qx**2)),
-                math.degrees(math.asin(2*(qw*qy - qz*qx))),
-                math.degrees(math.atan2(qw*qz + qx*qy, halfMinusQy2 - qz**2)),
-            ]
         return makeContinuousRange3dof(
-            euler,
+            [quatToEuler(self.quat[i, :] if quat is None else quat) for i in range(self.quat.shape[0])],
             fix_0=False,
             fix_1=False,
             fix_2=cts_yaw,
@@ -125,30 +116,3 @@ class IMU:
         #     quat.z = q[3]
         #     quats.append(quat)
         # return quats
-
-
-    def avgQuat(self, r, weights=None):
-        """Performs the calculation for the average quaternion, based on the range `r` provided.
-        
-        Assumes equal weighting between all the quaternions, otherwise override `weights` list.
-
-        Returns
-        -------
-        Average orientation quaternion [w, x, y, z] over range `r`.
-        """
-        quats = self.quat[r[0]:r[1], :]
-        ws = np.ones(len(quats)) if weights is None else weights
-        qavg = np.array([0., 0., 0., 0.])
-        for i, quat in enumerate(quats):
-            # ensure each quat is normalized
-            quat = quat / np.linalg.norm(quat)
-
-            # flip, account for double cross over
-            if i > 0 and quat.dot(quats[0]) < 0.:
-                print('double cross over!')
-                ws[i] -= 1
-
-            qavg = np.add(qavg, quat * ws[i])
-        qavg /= np.linalg.norm(qavg)
-        print(qavg)
-        return qavg / np.linalg.norm(qavg)

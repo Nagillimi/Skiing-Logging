@@ -69,6 +69,7 @@ class TileTrack(Tile):
         
         Set from the detected still phases at the lift tops.
         """
+        print('euler6_b self.qSB6:', self.qSB6)
         return makeContinuousRange3dof(
             np.array([self.imu6.computeEuler(quat=q) for q in self.imu6.tareOrientation(self.qSB6)]),
             fix_0=False,

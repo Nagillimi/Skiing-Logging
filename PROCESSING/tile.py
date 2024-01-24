@@ -1,3 +1,4 @@
+from quat import avgQuat
 from imu import IMU
 from signal_processing import length, lowpass
 import numpy as np
@@ -118,6 +119,8 @@ class Tile:
 
     def setQsbFromRange(self, r):
         """Set the rotation quaternion to rotate the sensor frame into the boot frame."""
-        self.qSB6 = self.imu6.avgQuat(r)
-        self.qSB9 = self.imu9.avgQuat(r)
+        self.qSB6 = avgQuat(self.imu6.quat[r[0]:r[1]])
+        self.qSB9 = avgQuat(self.imu9.quat[r[0]:r[1]])
+        print('setQsbFromRange() qSB6 set to:', self.qSB6)
+        print('setQsbFromRange() qSB9 set to:', self.qSB9)
 
