@@ -20,7 +20,7 @@ class IMU:
             accel_reject=10,
             mag_reject=10,
             recovery_period_s=5,
-            run=True,
+            quat=None,
         ) -> None:
         """Initializes the IMU object and performs the orientation calculations based on the amount
         of data sent (6dof for accel/gyro, 9dof  +mag).
@@ -41,9 +41,6 @@ class IMU:
         self.mag = np.divide(np.transpose(mag), 10) if mag is not None else None
         """Magnetometer data converted to uT."""
 
-        if run is False:
-            return
-        
         self.ahrs.settings = imufusion.Settings(
             imufusion.CONVENTION_NWU,
             gain,
@@ -53,10 +50,10 @@ class IMU:
             recovery_period_s * fs,
         )
 
-        self.quat = self.computeOrientation()
+        self.quat = self.computeOrientation() if quat is None else quat
         """Quaternion dataset, convention [w,x,y,z]."""
 
-        self.euler = self.computeEuler()
+        self.euler = self.computeEuler(quat=None if quat is None else quat)
         """Euler data based on the orientation quaternion, yaw is by default unclamped.
         
         If you want clamped yaw data, use `getClampedEuler()`
@@ -90,8 +87,11 @@ class IMU:
     def computeEuler(self, cts_yaw=True, quat=None):
         """Gets the euler data from the orientatio quaternion, 
         assuming yaw data in a continuous range otherwise set `cts_yaw` to False."""
+        euler = np.empty((self.quat.shape[0], 3))
+        for i in range(self.quat.shape[0]):
+            euler[i] = quatToEuler(self.quat[i])
         return makeContinuousRange3dof(
-            [quatToEuler(self.quat[i, :] if quat is None else quat) for i in range(self.quat.shape[0])],
+            euler,
             fix_0=False,
             fix_1=False,
             fix_2=cts_yaw,
@@ -106,13 +106,3 @@ class IMU:
         qSB_i = np.multiply(qSB, [1, -1, -1, -1])
         return [quatMult(quatMult(qSB, q), qSB_i) for q in self.quat]
     
-        # fml
-        # quats = []
-        # for q in q_prod:
-        #     quat = self.ahrs.quaternion # placeholder until I make my owbn orientation alg
-        #     quat.w = q[0]
-        #     quat.x = q[1]
-        #     quat.y = q[2]
-        #     quat.z = q[3]
-        #     quats.append(quat)
-        # return quats

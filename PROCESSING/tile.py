@@ -1,3 +1,4 @@
+from tile_track import TileTrack
 from quat import avgQuat
 from imu import IMU
 from signal_processing import length, lowpass
@@ -90,8 +91,31 @@ class Tile:
 
 
     @property
-    def imu6_b(self):
-        pass
+    def tracks(self):
+        return self.__tracks
+
+
+    @property
+    def file_train(self):
+        return self.__file_train
+
+
+    @file_train.setter
+    def file_train(self, f):
+        self.__file_train = f
+
+
+    def assignTracks(self, ranges):
+        self.__tracks = [
+            TileTrack(
+                track_type='Downhill',
+                parent_tile=self,
+                range=r,
+                file_train=self.file_train,
+                identifyKinematics=True,
+            ) for r in ranges
+        ]
+
 
     def ax_lpf(self, Wn, ftype):
         """Lowpass filtered accelerometer data for x"""
@@ -115,6 +139,11 @@ class Tile:
             self.ay_lpf(Wn=Wn, ftype=ftype), 
             self.az_lpf(Wn=Wn, ftype=ftype)
         )
+    
+
+    def getTrack(self, idx: int):
+        """Instantiates TileTrack for the downhill track based on the downhill track index."""
+        return self.tracks[idx]
 
 
     def setQsbFromRange(self, r):

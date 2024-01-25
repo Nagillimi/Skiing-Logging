@@ -2,65 +2,48 @@ from datetime import date, time
 from io import TextIOWrapper
 from imu import IMU
 from datafile import constructJumpLine
-from tile import Tile
-from track import Track
+# from tile import Tile
 from jump import Jump, JUMP_THRESHOLD_MG
 from signal_processing import identifyRangesBelowTH, makeContinuousRange3dof
 import numpy as np
 
-class TileTrack(Tile):
+class TileTrack:
+    """TileTrack sublcass of Tile, acting as protocol inheritance.
+    Do NOT call super here, props and methods are overridden in all intersecting cases.
+
+
+    """
     def __init__(
             self,
-            track_type: str,
-            date: date,
-            tod: time,
-            duration: int,
-            length: int,
-            parent_tile: Tile,
+            parent_tile,
             range: list,
             file_train: TextIOWrapper,
-            identifyKinematics: bool,
+            track_type='Downhill',
+            identifyKinematics = True,
     ):
-        trimmed_imu6 = self.trimIMU(parent_tile.imu6, range)
-        trimmed_imu9 = self.trimIMU(parent_tile.imu9, range)
-
-        super().__init__(
-            time=parent_tile.time[range[0]:range[1]],
-            ax=parent_tile.ax[range[0]:range[1]],
-            ay=parent_tile.ay[range[0]:range[1]],
-            az=parent_tile.az[range[0]:range[1]],
-            gx=parent_tile.gx[range[0]:range[1]],
-            gy=parent_tile.gy[range[0]:range[1]],
-            gz=parent_tile.gz[range[0]:range[1]],
-            mx=parent_tile.mx[range[0]:range[1]],
-            my=parent_tile.my[range[0]:range[1]],
-            mz=parent_tile.mz[range[0]:range[1]],
-            pres=parent_tile.pres[range[0]:range[1]],
-            temp=parent_tile.temp[range[0]:range[1]],
-            hum=parent_tile.hum[range[0]:range[1]],
-            corrected_alt=parent_tile.corrected_alt[range[0]:range[1]],
-            imu6=trimmed_imu6,
-            imu9=trimmed_imu9,
-        )
-        # set track metadata from the parent a50 track
-        self.track = Track(
-            track_type=track_type,
-            date=date,
-            tod=tod,
-            duration=duration,
-            length=length,
-            time=time,
-            dist=[], vel=[], alt=[], lat=[], long=[]
-        )
+        self.track_type = track_type
+        self.time = parent_tile.time[range[0]:range[1]]
+        self.ax = parent_tile.ax[range[0]:range[1]]
+        self.ay = parent_tile.ay[range[0]:range[1]]
+        self.az = parent_tile.az[range[0]:range[1]]
+        self.gx = parent_tile.gx[range[0]:range[1]]
+        self.gy = parent_tile.gy[range[0]:range[1]]
+        self.gz = parent_tile.gz[range[0]:range[1]]
+        self.mx = parent_tile.mx[range[0]:range[1]]
+        self.my = parent_tile.my[range[0]:range[1]]
+        self.mz = parent_tile.mz[range[0]:range[1]]
+        self.pres = parent_tile.pres[range[0]:range[1]]
+        self.temp = parent_tile.temp[range[0]:range[1]]
+        self.hum = parent_tile.hum[range[0]:range[1]]
+        self.corrected_alt = parent_tile.corrected_alt[range[0]:range[1]]
+        self.imu6 = self.trimIMU(parent_tile.imu6, range)
+        self.imu9 = self.trimIMU(parent_tile.imu9, range)
         self.file_train = file_train
+
         if not identifyKinematics:
             return
         self.identifyJumps()
         self.identifyTurns()
-
-
-    def __printProps__(self, prefix="\t"):
-        return self.track.__printProps__(prefix)
 
 
     @property
@@ -98,14 +81,8 @@ class TileTrack(Tile):
         Doesn't recompute the orientation data based on trimmed motion data since it'd consume
         more processing, 
         """
-        trimmedIMU = IMU([], [], run=False)
-        trimmedIMU.quat = imu.quat[r[0]:r[1]]
-        trimmedIMU.euler = imu.euler[r[0]:r[1], :]
-        trimmedIMU.euler_norm = imu.euler_norm[r[0]:r[1]]
-        trimmedIMU.accel = imu.accel[r[0]:r[1], :]
-        trimmedIMU.gyro = imu.gyro[r[0]:r[1], :]
-        trimmedIMU.mag = imu.mag[r[0]:r[1], :] if imu.mag is not None else None
-        return trimmedIMU
+        print('trimming IMU:', imu, 'to range:', r)
+        return IMU([], [], quat=imu.quat[r[0]:r[1], :])
 
 
     def logJumpData(self, override_th=None):

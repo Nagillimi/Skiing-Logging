@@ -30,20 +30,19 @@ def avgQuat(quats, weights=None):
 
         # flip, account for double cross over
         if i > 0 and quat.dot(quats[0]) < 0.:
-            print('double cross over!')
             ws[i] -= 1
 
         qavg = np.add(qavg, quat * ws[i])
-    qavg /= np.linalg.norm(qavg)
-    print(qavg)
-    return qavg / np.linalg.norm(qavg)
+    norm = np.linalg.norm(qavg)
+    qavg /= norm if not norm == 0 else 1
+    return qavg
 
 
 def quatToEuler(q):
     qw = q[0]; qx = q[1]; qy = q[2]; qz = q[3]
     halfMinusQy2 = 0.5 - qy**2
-    return np.array([
+    return [
         math.degrees(math.atan2(qw*qx + qy*qz, halfMinusQy2 - qx**2)),
         math.degrees(math.asin(2*(qw*qy - qz*qx))),
         math.degrees(math.atan2(qw*qz + qx*qy, halfMinusQy2 - qz**2)),
-    ])
+    ]

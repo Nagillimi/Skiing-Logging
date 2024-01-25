@@ -1,6 +1,6 @@
 from decode import decode_A50, decode_A50_downhill, decode_F6P, decode_tile
 from sync import syncTile
-from split import splitTileIntoDownhillTileTracks
+from split import assignDownhillTileTracks
 
 def load_2022_12_24(print_out=True):
     """Imports all datasets from 2022, 12, 24 at Morin Heights.
@@ -42,7 +42,7 @@ def load_2022_12_26(
     )
     
     if split_tile:
-        tile = splitTileIntoDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
+        assignDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
 
 
@@ -75,7 +75,7 @@ def load_2022_12_27(
     )
     
     if split_tile:
-        tile = splitTileIntoDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
+        assignDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
 
 
@@ -108,7 +108,7 @@ def load_2023_12_30(
     )
     
     if split_tile:
-        tile = splitTileIntoDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
+        assignDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
 
 
@@ -141,7 +141,7 @@ def load_2023_12_31(
     )
     
     if split_tile:
-        tile = splitTileIntoDownhillTileTracks(tile, a50, print_out=print_out, header="Tile Split into Downhill Tracks")
+        assignDownhillTileTracks(tile, a50, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
 
 
@@ -174,5 +174,5 @@ def load_2024_01_01(
     )
     
     if split_tile:
-        tile = splitTileIntoDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
+        assignDownhillTileTracks(tile, a50_dh, print_out=print_out, header="Tile Split into Downhill Tracks")
     return a50_dh, a50, f6p, tile
