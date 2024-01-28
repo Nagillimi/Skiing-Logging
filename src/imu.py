@@ -11,9 +11,9 @@ class IMU:
 
     def __init__(
             self,
-            accel: list[list],
-            gyro: list[list],
-            mag: list[list] = None,
+            accel: np.ndarray,
+            gyro: np.ndarray,
+            mag: np.ndarray = None,
             fs=100,
             gain = 0.5,
             gyro_range=2000,
@@ -32,13 +32,13 @@ class IMU:
         self.offset = imufusion.Offset(fs)
         self.ahrs = imufusion.Ahrs()
         self.fs = fs
-        self.accel = np.divide(np.transpose(accel), 1000)
+        self.accel = np.divide(accel, 1000)
         """Accelerometer data converted to G's."""
 
-        self.gyro = np.divide(np.transpose(gyro), 1000)
+        self.gyro = np.divide(gyro, 1000)
         """Gyroscope data converted to dps."""
 
-        self.mag = np.divide(np.transpose(mag), 10) if mag is not None else None
+        self.mag = np.divide(mag, 10) if mag is not None else None
         """Magnetometer data converted to uT."""
 
         self.ahrs.settings = imufusion.Settings(

@@ -119,7 +119,11 @@ def length(ax, ay, az):
     return [math.sqrt(ax[i]**2 + ay[i]**2 + az[i]**2) for i in range(len(ax))]
 
 
-def lowpass(x, Wn, ftype='iir1'):
+def length(x: np.ndarray):
+    return np.linalg.norm(x, axis=1)
+
+
+def lowpass(x: list, Wn, ftype='iir1'):
     """Lowpass filter input signal `x` by the cutoff frequency `Wn = fc / fs`."""
 
     if ftype == 'iir1':
@@ -140,6 +144,15 @@ def lowpass(x, Wn, ftype='iir1'):
     
     else:
         return []
+
+
+def lowpass3(x: np.ndarray, Wn, ftype='butter2'):
+    if ftype == 'butter2':
+        sos = signal.butter(2, Wn, 'low', output='sos')
+        return signal.sosfiltfilt(sos, x, axis=2)
+    
+    else:
+        return x
 
 
 def mae(x1, x2):

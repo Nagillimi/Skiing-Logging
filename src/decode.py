@@ -1,12 +1,12 @@
 import pandas as pd
 from decorators import printTracks
-from tile import Tile
+from raw_tile import RawTile
 from track import Track
 from datetime import datetime
 
 
 @printTracks
-def decode_A50(file, print_out, header):
+def decodeA50(file, print_out, header):
     csv = pd.read_csv(file)
     l = csv.loc[csv.iloc[:, 0].isnull()].index.to_list()
     nan_indices = [0] + l + [csv.shape[0]]
@@ -55,13 +55,13 @@ def decode_A50(file, print_out, header):
 
 
 @printTracks
-def decode_A50_downhill(file, print_out, header):
-    tracks = decode_A50(file, print_out=False, header="")
+def decodeA50Downhill(file, print_out, header):
+    tracks = decodeA50(file, print_out=False, header="")
     return [track for track in tracks if track.track_type == "Downhill"]
 
 
 @printTracks
-def decode_F6P(file, print_out, header):
+def decodeF6P(file, print_out, header):
     ts_msb = 631065600 # Add MSB since this is the LSB of the ts https://stackoverflow.com/a/57836047
     csv = pd.read_csv(file, low_memory=False) # no low memory due to columns having data with nonintersecting types
     lap_rows = csv.loc[csv['Message'] == 'lap'].loc[csv['Type'] == 'Data']
@@ -105,22 +105,15 @@ def decode_F6P(file, print_out, header):
 
 
 @printTracks
-def decode_tile(file, print_out, header):
+def decodeTile(file, print_out, header):
     csv = pd.read_csv(file)
 
-    return Tile(
-        time=[int(t) for t in csv.iloc[:, 0].tolist()],
-        ax=[int(a) for a in csv.iloc[:, 1].tolist()],
-        ay=[int(a) for a in csv.iloc[:, 2].tolist()],
-        az=[int(a) for a in csv.iloc[:, 3].tolist()],
-        gx=[int(g) for g in csv.iloc[:, 4].tolist()],
-        gy=[int(g) for g in csv.iloc[:, 5].tolist()],
-        gz=[int(g) for g in csv.iloc[:, 6].tolist()],
-        mx=[int(m) for m in csv.iloc[:, 7].tolist()],
-        my=[int(m) for m in csv.iloc[:, 8].tolist()],
-        mz=[int(m) for m in csv.iloc[:, 9].tolist()],
-        pres=[float(p) for p in csv.iloc[:, 10].tolist()],
-        temp=[float(t) for t in csv.iloc[:, 11].tolist()],
-        hum=[float(h) for h in csv.iloc[:, 12].tolist()],
-        corrected_alt=[], # not computed here to avoid confusion with raw_alt() method,
+    return RawTile(
+        time=csv.iloc[:, 0].to_numpy(),
+        accel=csv.iloc[:, 1:3].to_numpy(),
+        gyro=csv.iloc[:, 4:6].to_numpy(),
+        mag=csv.iloc[:, 7:9].to_numpy(),
+        pres=csv.iloc[:, 10].tolist(),
+        temp=csv.iloc[:, 11].to_numpy(),
+        hum=csv.iloc[:, 12].to_numpy(),
     )

@@ -1,14 +1,14 @@
 from track import Track
 from tile import Tile
 from stitch import stitch
+import numpy as np
 
-
-def syncTile(
+def timeAndAltOffsets(
         tile: Tile,
         truth: [Track],
         use_lpf=True,
         print_out=False,
-        printProgress=False,
+        print_progress=False,
         use_mae=True,
         time_step_s=0.1,
         max_time_search_s=30,
@@ -25,26 +25,25 @@ def syncTile(
     stitched_a50_time, stitched_a50_alt = stitch(truth)
 
     # 2. find the optimal time and altitude offsets
-    corrected_tile_time = []; corrected_tile_alt = []
     shift_h_tile = []; shift_v_tile = []
     collection = []
     tile_ts_search = 0
     for i in range(max_time_search_s):
-        # horizontal shift
+        # horizontal shift & downsample to 1Hz (for truth comparison)
         shift_h_tile = tile_alt[tile_ts_search : (tile_ts_search + len(stitched_a50_time) * 100) : 100]
 
         # reset the elevation starting point
         tile_alt_search = min_alt_start
-        for _ in range(int(max_alt_search / alt_step)):
+        for _ in range(round(max_alt_search / alt_step)):
             # vertical shift
-            shift_v_tile = [tile - tile_alt_search for tile in shift_h_tile]
+            shift_v_tile = shift_h_tile - tile_alt_search
 
             # calculate the mae, sse
-            d = [shift_v_tile[k] - stitched_a50_alt[k] for k in range(len(shift_v_tile))]
-            abs_d = [abs(_d) for _d in d]
-            d2 = [_d**2 for _d in d]
-            mae = sum(abs_d) / len(d)
-            mse = sum(d2) / len(d)
+            d = shift_v_tile - stitched_a50_alt
+            abs_d = np.abs(d)
+            d2 = d**2
+            mae = np.mean(abs_d)
+            mse = np.mean(d2)
 
             # append to lists
             collection.append([tile_ts_search, tile_alt_search, mae, mse])
@@ -52,9 +51,9 @@ def syncTile(
             # iterate
             tile_alt_search += alt_step
 
-        # iterate (convert since tile time is in ms & publishing at 100Hz)
+        # iterate (in seconds)
         tile_ts_search += int(time_step_s * 1000)
-        if printProgress:
+        if print_progress:
             progress = round(100 * (i + 1) / (max_time_search_s + 1))
             print(progress, '%', sep="")
     
@@ -71,26 +70,7 @@ def syncTile(
     opt_alt = alt_all[min_ts_idx]
     if print_out:
         print('Synchronized Tile Parameters')
-        print('\tTimestamp offset:', opt_ts)
-        print('\tAltitude offset:', opt_alt)
-    # converting the timestamps to the global format, which are in seconds
-    corrected_tile_time = [((t - tile.time[0]) / 1000) + stitched_a50_time[0] - (opt_ts / 100) for t in tile.time]
-    corrected_tile_alt = [a - opt_alt for a in tile_alt]
-    return Tile(
-        time=corrected_tile_time,
-        ax = tile.ax,
-        ay = tile.ay,
-        az = tile.az,
-        gx = tile.gx,
-        gy = tile.gy,
-        gz = tile.gz,
-        mx = tile.mx,
-        my = tile.my,
-        mz = tile.mz,
-        pres = tile.pres,
-        temp = tile.temp,
-        hum = tile.hum,
-        corrected_alt=corrected_tile_alt,
-        imu6=tile.imu6,
-        imu9=tile.imu9,
-    )
+        print('\tTimestamp offset (ms):', opt_ts)
+        print('\tAltitude offset (m):', opt_alt)
+
+    return opt_ts, opt_alt

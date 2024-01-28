@@ -1,8 +1,6 @@
+from track import Track
+import numpy as np
 
-
-def stitch(trackList):
-    t = []; a = []
-    for track in trackList:
-        t += track.time
-        a += track.alt
-    return t, a
+def stitch(trackList: [Track]):
+    return np.array([track.time for track in trackList]),\
+        np.array([track.alt for track in trackList])
