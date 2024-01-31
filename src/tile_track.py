@@ -4,7 +4,7 @@ from imu import IMU
 from datafile import constructJumpLine
 # from tile import Tile
 from jump import Jump, JUMP_THRESHOLD_MG
-from signal_processing import identifyRangesBelowTH, makeContinuousRange3dof
+from sig_proc import identifyRangesBelowTH, makeContinuousRange3dof
 import numpy as np
 
 class TileTrack:

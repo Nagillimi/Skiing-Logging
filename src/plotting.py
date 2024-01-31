@@ -1,5 +1,5 @@
 from jump import JUMP_THRESHOLD_MG
-from signal_processing import length
+from sig_proc import length
 from track import Track
 from tile import Tile
 from tile_track import TileTrack

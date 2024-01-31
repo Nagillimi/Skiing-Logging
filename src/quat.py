@@ -13,7 +13,7 @@ def quatMult(qa: np.ndarray, qb: np.ndarray):
     ])
 
 
-def avgQuat(quats, weights=None):
+def avgQuat(quats: np.ndarray, weights=None):
     """Performs the calculation for the average quaternion, based on the range `r` provided.
     
     Assumes equal weighting between all the quaternions, otherwise override `weights` list.
@@ -22,11 +22,12 @@ def avgQuat(quats, weights=None):
     -------
     Average orientation quaternion [w, x, y, z] over range `r`.
     """
-    ws = np.ones(len(quats)) if weights is None else weights
+    N = quats.shape[0]
+    ws = np.ones(N) if weights is None else weights
     qavg = np.array([0., 0., 0., 0.])
-    for i, quat in enumerate(quats):
+    for i in range(N):
         # ensure each quat is normalized
-        quat = quat / np.linalg.norm(quat)
+        quat = quats[i] / np.linalg.norm(quats[i])
 
         # flip, account for double cross over
         if i > 0 and quat.dot(quats[0]) < 0.:
@@ -38,11 +39,11 @@ def avgQuat(quats, weights=None):
     return qavg
 
 
-def quatToEuler(q):
+def quatToEuler(q: np.ndarray):
     qw = q[0]; qx = q[1]; qy = q[2]; qz = q[3]
     halfMinusQy2 = 0.5 - qy**2
-    return [
-        math.degrees(math.atan2(qw*qx + qy*qz, halfMinusQy2 - qx**2)),
-        math.degrees(math.asin(2*(qw*qy - qz*qx))),
-        math.degrees(math.atan2(qw*qz + qx*qy, halfMinusQy2 - qz**2)),
-    ]
+    return np.array([
+        np.degrees(np.arctan2(qw*qx + qy*qz, halfMinusQy2 - qx**2)),
+        np.degrees(np.arcsin(2*(qw*qy - qz*qx))),
+        np.degrees(np.arctan2(qw*qz + qx*qy, halfMinusQy2 - qz**2)),
+    ])

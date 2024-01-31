@@ -1,11 +1,18 @@
+from sig_proc_np import maxIndex, minIndex
 from stat_tests import StatTests as ST
-from signal_processing import maxIndex, mean, minIndex, trapz, std
+import numpy as np
 
 JUMP_THRESHOLD_MG = 600
 """The static low mG threshold to trigger jump identification."""
 
 class Jump:
-    def __init__(self, lowG_range: [], mG_lpf: [], mG: [], gyro: [], print_out=False) -> None:
+    def __init__(self,
+            lowG_range: np.ndarray,
+            mG_lpf: np.ndarray,
+            mG: np.ndarray,
+            gyro: np.ndarray,
+            print_out=False
+    ) -> None:
         self.lowG_range = lowG_range
         self.mG_lpf = mG_lpf
         self.mG = mG
@@ -32,8 +39,8 @@ class Jump:
         Friction and drag are neglected.
         """
         # integrate (1G - mG_lpf) to get velocity
-        vel = trapz([a - 1 for a in self.mG_lpf])
-        mean_air_time_vel = mean(vel[self.liftoff_idx:self.touch_idx])
+        vel = np.trapz(self.mG_lpf)
+        mean_air_time_vel = np.mean(vel[self.liftoff_idx:self.touch_idx])
         return mean_air_time_vel * self.airTime
 
 
@@ -61,12 +68,12 @@ class Jump:
             self.touch_idx = self.min_idx
             for i in range(len(self.mG[0:self.min_idx]) - wsamples):
                 # build sliding window & test std
-                if std(self.mG[self.min_idx - (wsamples + i):self.min_idx - i]) > 400:
+                if np.std(self.mG[self.min_idx - (wsamples + i):self.min_idx - i]) > 400:
                     self.liftoff_idx = self.min_idx - (i + round(wsamples / 2))
                     break
 
             for i in range(len(self.mG[self.min_idx:-1]) - wsamples):
-                if std(self.mG[self.min_idx + i:self.min_idx + (wsamples + i)]) > 1000:
+                if np.std(self.mG[self.min_idx + i:self.min_idx + (wsamples + i)]) > 1000:
                     self.touch_idx = self.min_idx + (i + round(wsamples / 2))
                     break
 
@@ -99,9 +106,12 @@ class Jump:
         if print_out: print('landing_range:\t', self.landing_range)
     
 
-    def runTestSuite(self, print_out=False):
-        """Run the test suite. Can toggle individual running here."""
-        return [
+    def runTestSuite(self, print_out=False) -> np.ndarray:
+        """Run the test suite. Can toggle individual running here.
+        
+        In the future, can return values and parameters for each test. For ML
+        """
+        return np.array([
             ST.testDecreasingTrend(self.mG_lpf, self.air_range, print_out=print_out, header='Test mG_lpf has decreasing trend'),
             ST.testMinSampleCount(self.mG_lpf, self.air_range, print_out=print_out, header='Test mG_lpf has minimum sample count'),
             ST.testMinSampleCount(self.mG_lpf, self.lowG_range, min_count=10, print_out=print_out, header='Test mG_lpf has minimum samples below lowG threshold'),
@@ -119,8 +129,7 @@ class Jump:
             ST.testLargerSampleMean(self.gyro, self.landing_range, print_out=print_out, header='Test gyro mean (landing time > pop)'),
             ST.testLargeImpulse(self.mG, self.air_range, print_out=print_out, header='Test landing time mG contains large impulse > (3 * std dev)'),
             ST.testTimingOfLargeImpulse(self.mG, self.landing_range, print_out=print_out, header='Test that large impulse occurs close to landing time'),
-        ]
-    # in the future, can return values and parameters for each test. For ML
+        ])
     
 
     def test(self, print_out=False):
@@ -130,8 +139,8 @@ class Jump:
         Returns the number of tests passed, total tests, and the confidence value in %.
         """
         results = self.runTestSuite(print_out=print_out)
-        self.tests_passed = sum([int(r) for r in results])
-        self.total_tests = len(results)
+        self.tests_passed = np.sum(results)
+        self.total_tests = results.shape[0]
         self.confidence = self.tests_passed / self.total_tests * 100
     
     

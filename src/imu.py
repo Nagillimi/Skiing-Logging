@@ -1,8 +1,7 @@
 import imufusion
 import numpy as np
 from quat import quatMult, quatToEuler
-from signal_processing import makeContinuousRange3dof
-import math 
+from sig_proc_np import makeContinuousRange3dof
 
 class IMU:
     """
@@ -20,7 +19,6 @@ class IMU:
             accel_reject=10,
             mag_reject=10,
             recovery_period_s=5,
-            quat=None,
         ) -> None:
         """Initializes the IMU object and performs the orientation calculations based on the amount
         of data sent (6dof for accel/gyro, 9dof  +mag).
@@ -28,19 +26,14 @@ class IMU:
         Assumes the motion data is passed in how the Tile is parsed, in [3xN] matrix shape. Sample 
         rate is set to 100Hz, override `fs` otherwise.
         """
-        
+        # convert data to G's, dps, & uT
+        a = np.divide(accel, 1000)
+        g = np.divide(gyro, 1000)
+        m = np.divide(mag, 10) if mag is not None else None
+
         self.offset = imufusion.Offset(fs)
         self.ahrs = imufusion.Ahrs()
         self.fs = fs
-        self.accel = np.divide(accel, 1000)
-        """Accelerometer data converted to G's."""
-
-        self.gyro = np.divide(gyro, 1000)
-        """Gyroscope data converted to dps."""
-
-        self.mag = np.divide(mag, 10) if mag is not None else None
-        """Magnetometer data converted to uT."""
-
         self.ahrs.settings = imufusion.Settings(
             imufusion.CONVENTION_NWU,
             gain,
@@ -49,48 +42,36 @@ class IMU:
             mag_reject,
             recovery_period_s * fs,
         )
-
-        self.quat = self.computeOrientation() if quat is None else quat
-        """Quaternion dataset, convention [w,x,y,z]."""
-
-        self.euler = self.computeEuler(quat=None if quat is None else quat)
-        """Euler data based on the orientation quaternion, yaw is by default unclamped.
-        
-        If you want clamped yaw data, use `getClampedEuler()`
-        """
-
-        self.euler_norm = [np.linalg.norm(self.euler[row, :]) for row in range(self.euler.shape[0])]
-        """
-        Vector norm of the euler data to represent a single combined angle, in 3D.
-        Assumed the yaw angle is best in cts range, useful for motion tests & calculations.
-        """
+        self.computeOrientation(a, g, m)
+        self.computeEuler()
 
 
-    def computeOrientation(self):
+    def computeOrientation(self, a: np.ndarray, g: np.ndarray, m=None):
         """Compute the orientation quaternion with the motion data.
         
         Computes either 6 or 9dof based depending on whether the mag was set.
         """
-        quat = np.empty((self.accel.shape[0], 4))
-        for i in range(self.accel.shape[0]):
-            offset_gyro = self.offset.update(self.gyro[i])
-            if self.mag is None:
-                self.ahrs.update_no_magnetometer(offset_gyro, self.accel[i], 1 / self.fs)
+        quat = np.empty((a.shape[0], 4))
+        for i in range(a.shape[0]):
+            offset_gyro = self.offset.update(g[i])
+            if m is None:
+                self.ahrs.update_no_magnetometer(offset_gyro, a[i], 1 / self.fs)
             else:
-                self.ahrs.update(offset_gyro, self.accel[i], self.mag[i], 1 / self.fs)
+                self.ahrs.update(offset_gyro, a[i], m[i], 1 / self.fs)
             q = self.ahrs.quaternion
             quat[i] = [q.w, q.x, q.y, q.z]
-        return quat
+        self.quat = quat
     
 
     # https://github.com/xioTechnologies/Fusion/blob/58f9d2e01be0fcda37ebb1af35c7fc09a5dcbeff/Fusion/FusionMath.h#L466
-    def computeEuler(self, cts_yaw=True, quat=None):
+    def computeEuler(self, cts_yaw=True):
         """Gets the euler data from the orientatio quaternion, 
         assuming yaw data in a continuous range otherwise set `cts_yaw` to False."""
         euler = np.empty((self.quat.shape[0], 3))
         for i in range(self.quat.shape[0]):
             euler[i] = quatToEuler(self.quat[i])
-        return makeContinuousRange3dof(
+        self.euler_combined = np.linalg.norm(euler, axis=1)
+        self.euler = makeContinuousRange3dof(
             euler,
             fix_0=False,
             fix_1=False,
@@ -106,3 +87,39 @@ class IMU:
         qSB_i = np.multiply(qSB, [1, -1, -1, -1])
         return [quatMult(quatMult(qSB, q), qSB_i) for q in self.quat]
     
+
+    @property
+    def euler(self) -> np.ndarray:
+        """Euler data based on the orientation quaternion, yaw is by default unclamped.
+        
+        If you want clamped yaw data, use `getClampedEuler()`
+        """
+        return self.__euler
+    
+    @euler.setter
+    def euler(self, e):
+        self.__euler = e
+        
+
+    @property
+    def euler_combined(self) -> np.ndarray:
+        """
+        Vector norm of the euler data to represent a single combined angle, in 3D.
+        Assumed the yaw angle is best in cts range, useful for motion tests & calculations.
+        """
+        return self.__euler_combined
+    
+    @euler_combined.setter
+    def euler_combined(self, e):
+        self.__euler_combined = e
+        
+
+    @property
+    def quat(self) -> np.ndarray:
+        """Quaternion dataset, convention [w,x,y,z]."""
+        return self.__quat
+    
+    @quat.setter
+    def quat(self, e):
+        self.__quat = e
+

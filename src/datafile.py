@@ -1,6 +1,6 @@
 import os
 from jump import JUMP_THRESHOLD_MG
-from signal_processing import mean, std
+from sig_proc import mean, std
 
 JUMP_HEADER = 'mG_th,'\
     + 'lowG_range_1,lowG_range_2,lowG_range,'\

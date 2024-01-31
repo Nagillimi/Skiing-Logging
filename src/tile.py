@@ -1,11 +1,10 @@
 from jump import JUMP_THRESHOLD_MG, Jump
 from raw_tile import RawTile
 from registration import Registration
-from sync import timeAndAltOffsets
+import stitch
 from imu import IMU
-from signal_processing import identifyRangesBelowTH, length, lowpass, lowpass3
+from sig_proc_np import identifyRangesBelowTH, length, lowpass, lowpass
 import numpy as np
-
 from track import Track
 
 class Tile:
@@ -16,6 +15,20 @@ class Tile:
         self.time = raw.time
         """Time vector, in `s`. [Nx1]"""
 
+        print('raw.accel.shape:', raw.accel.shape)
+        print('raw.accel[0, 0]', raw.accel[0, 0])
+        print('raw.accel[0, 1]', raw.accel[0, 1])
+        print('raw.accel[0, 2]', raw.accel[0, 2])
+        print('raw.gyro[0, 0]', raw.gyro[0, 0])
+        print('raw.gyro[0, 1]', raw.gyro[0, 1])
+        print('raw.gyro[0, 2]', raw.gyro[0, 2])
+        print('raw.mag[0, 0]', raw.mag[0, 0])
+        print('raw.mag[0, 1]', raw.mag[0, 1])
+        print('raw.mag[0, 2]', raw.mag[0, 2])
+        print('raw.pres[0]', raw.pres[0])
+        print('raw.temp[0]', raw.temp[0])
+        print('raw.hum[0]', raw.hum[0])
+
         self.constructProcessedSignals(raw)
 
 
@@ -25,6 +38,139 @@ class Tile:
             prefix,
             "Duration [s]", round((self.time[-1] - self.time[0]) / (1 if in_s else 1000))
         )
+
+
+    def constructProcessedSignals(self, raw: RawTile):
+        """Constructs all the processed signals for the Tile sensor."""
+        self.raw_alt = 44307.694 * (1 - (raw.pres / 1013.25)**0.190284)
+        self.raw_alt_lpf = lowpass(self.raw_alt, 1/100, 'butter2')
+        self.gyro_v = length(raw.gyro)
+        self.mG = length(raw.accel)
+
+        self.accel_lpf = lowpass(raw.accel, 3/100, 'butter2')
+        self.mG_lpf = length(self.accel_lpf)
+
+        self.imu6 = IMU(raw.accel, raw.gyro)
+        self.imu9 = IMU(raw.accel, raw.gyro, raw.mag)
+
+
+    def identifyOffsets(self, 
+        truth: [Track],
+        use_lpf=True,
+        print_out=False,
+        print_progress=False,
+        use_mae=True,
+        time_step_s=0.1,
+        max_time_search_s=30,
+        alt_step=0.1,
+        min_alt_start=0,
+        max_alt_search=75,
+    ):
+        """Synchronizes the raw tile signals with a ground truth (using a search for best fit),
+        correcting altitude & time vectors (x&y) with translational offsets.
+
+        Note: this places the time vector in timestamp format, for comparison to ground truth signals.
+        """
+        tile_alt = self.raw_alt_lpf if use_lpf else self.raw_alt
+        stitched_a50_time, stitched_a50_alt = stitch(truth)
+
+        # 2. find the optimal time and altitude offsets
+        shift_h_tile = []; shift_v_tile = []
+        collection = []
+        tile_ts_search = 0
+        for i in range(max_time_search_s):
+            # horizontal shift & downsample to 1Hz (for truth comparison)
+            shift_h_tile = tile_alt[tile_ts_search : (tile_ts_search + len(stitched_a50_time) * 100) : 100]
+
+            # reset the elevation starting point
+            tile_alt_search = min_alt_start
+            for _ in range(round(max_alt_search / alt_step)):
+                # vertical shift
+                shift_v_tile = shift_h_tile - tile_alt_search
+
+                # calculate the mae, sse
+                d = shift_v_tile - stitched_a50_alt
+                abs_d = np.abs(d)
+                d2 = d**2
+                mae = np.mean(abs_d)
+                mse = np.mean(d2)
+
+                # append to lists
+                collection.append([tile_ts_search, tile_alt_search, mae, mse])
+
+                # iterate
+                tile_alt_search += alt_step
+
+            # iterate (in seconds)
+            tile_ts_search += int(time_step_s * 1000)
+            if print_progress:
+                progress = round(100 * (i + 1) / (max_time_search_s + 1))
+                print(progress, '%', sep="")
+        
+        ts_all = [m[0] for m in collection]
+        alt_all = [m[1] for m in collection]
+        mae_all = [m[2] for m in collection]
+        mse_all = [m[3] for m in collection]
+        min_ts_idx = 0
+        if use_mae: min_ts_idx = mae_all.index(min(mae_all))
+        else: min_ts_idx = mse_all.index(min(mse_all))
+
+        # 3. Align the timestamp with the start of the a50 dataset, incorporating the offset
+        opt_ts = ts_all[min_ts_idx] 
+        opt_alt = alt_all[min_ts_idx]
+        if print_out:
+            print('Synchronized Tile Parameters')
+            print('\tTimestamp offset (ms):', opt_ts)
+            print('\tAltitude offset (m):', opt_alt)
+
+        self.applyOffsets(opt_ts, opt_alt)
+        self.applyTimestamp(truth[0].time[0])
+
+
+    def applyTimestamp(self, ts_global):
+        """Applies a static timestamp offset in `s` to the internal time signal.
+        
+        It's called internally from sync, don't call directly unless you have the timestamp on hand!
+        -
+        """
+        self.time += ts_global - (self.time[0] / 1000)
+
+
+    def applyOffsets(self, ts_offset, alt_offset):
+        """Applies the offsets to the internal time and altitude signal to improve signal accuracy.
+        
+        It's called internally from sync, don't call directly unless you have the offsets on hand!
+        -
+        """
+        self.time = (self.time / 1000) - (ts_offset / 100)
+        self.alt = self.raw_alt - alt_offset
+        self.alt_lpf = self.raw_alt_lpf - alt_offset
+
+
+    def computeJumps(self, override_th=None):
+        """Identify all points of low G-force and run the jump id pipeline on each.
+        
+        Confidence values will be associated with each `Jump` instance.
+        """
+        lowG_els = identifyRangesBelowTH(
+            self.mG_lpf,
+            JUMP_THRESHOLD_MG if override_th is None else override_th
+        )
+        self.jumps = [Jump(el, self.mG_lpf, self.mG, self.gyro) for el in lowG_els]
+
+
+    def computeStaticRegistrations(self):
+        """Identifies points for static sensor tile boot registrations.
+
+        Store with an attached timestamp, so that the system computes boot orientations based on new
+        registrations (if any pass the tests!)
+        """
+        self.qSB6 = [Registration]
+        self.qSB9 = [Registration]
+
+
+    def computeTurns(self):
+        """Identify all turn-based kinematics."""
 
 
     @property
@@ -160,100 +306,3 @@ class Tile:
     @jumps.setter
     def jumps(self, qsb9):
         self.__jumps = qsb9
-
-
-    def constructProcessedSignals(self, raw: RawTile):
-        """Constructs all the processed signals for the Tile sensor."""
-
-        self.raw_alt = 44307.694 * (1 - (raw.pres / 1013.25)**0.190284)
-        self.raw_alt_lpf = lowpass(self.raw_alt, 1/100, 'butter2')
-        self.gyro_v = length(raw.gyro)
-        self.mG = length(raw.accel)
-
-        self.accel_lpf = lowpass3(raw.accel, 3/100, 'butter2')
-        self.mG_lpf = length(self.accel_lpf)
-
-        self.imu6 = IMU(raw.accel, raw.gyro)
-        self.imu9 = IMU(raw.accel, raw.gyro, raw.mag)
-
-
-    def identifyOffsets(self, 
-        truth: [Track],
-        use_lpf=True,
-        print_out=False,
-        print_progress=False,
-        use_mae=True,
-        time_step_s=0.1,
-        max_time_search_s=30,
-        alt_step=0.1,
-        min_alt_start=0,
-        max_alt_search=75,
-    ):
-        """Synchronizes the raw tile signals with a ground truth (using a search for best fit),
-        correcting altitude & time vectors (x&y) with translational offsets.
-
-        Note: this places the time vector in timestamp format, for comparison to ground truth signals.
-        """
-        self.applyOffsets(
-            timeAndAltOffsets(
-                self,
-                truth,
-                use_lpf,
-                print_out,
-                print_progress,
-                use_mae,
-                time_step_s,
-                max_time_search_s,
-                alt_step,
-                min_alt_start,
-                max_alt_search
-            )
-        )
-        self.applyTimestamp(truth[0].time[0])
-
-
-    def applyTimestamp(self, ts_global):
-        """Applies a static timestamp offset in `s` to the internal time signal.
-        
-        It's called internally from sync, don't call directly unless you have the timestamp on hand!
-        -
-        """
-        self.time += ts_global - (self.time[0] / 1000)
-
-
-    def applyOffsets(self, ts_offset, alt_offset):
-        """Applies the offsets to the internal time and altitude signal to improve signal accuracy.
-        
-        It's called internally from sync, don't call directly unless you have the offsets on hand!
-        -
-        """
-        self.time = (self.time / 1000) - (ts_offset / 100)
-        self.alt = self.raw_alt - alt_offset
-        self.alt_lpf = self.raw_alt_lpf - alt_offset
-
-
-    def computeJumps(self, override_th=None):
-        """Identify all points of low G-force and run the jump id pipeline on each.
-        
-        Confidence values will be associated with each `Jump` instance.
-        """
-        lowG_els = identifyRangesBelowTH(
-            self.mG_lpf(),
-            JUMP_THRESHOLD_MG if override_th is None else override_th
-        )
-        self.jumps = [Jump(el, self.mG_lpf(), self.mG, self.gyro) for el in lowG_els]
-        self.logJumpData(override_th)
-
-
-    def computeStaticRegistrations(self):
-        """Identifies points for static sensor tile boot registrations.
-
-        Store with an attached timestamp, so that the system computes boot orientations based on new
-        registrations (if any pass the tests!)
-        """
-        self.qSB6 = [Registration]
-        self.qSB9 = [Registration]
-
-
-    def computeTurns(self):
-        """Identify all turn-based kinematics."""

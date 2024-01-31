@@ -110,10 +110,10 @@ def decodeTile(file, print_out, header):
 
     return RawTile(
         time=csv.iloc[:, 0].to_numpy(),
-        accel=csv.iloc[:, 1:3].to_numpy(),
-        gyro=csv.iloc[:, 4:6].to_numpy(),
-        mag=csv.iloc[:, 7:9].to_numpy(),
-        pres=csv.iloc[:, 10].tolist(),
+        accel=csv.iloc[:, 1:4].to_numpy(),
+        gyro=csv.iloc[:, 4:7].to_numpy(),
+        mag=csv.iloc[:, 7:10].to_numpy(),
+        pres=csv.iloc[:, 10].to_numpy(),
         temp=csv.iloc[:, 11].to_numpy(),
         hum=csv.iloc[:, 12].to_numpy(),
     )

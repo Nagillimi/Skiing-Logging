@@ -31,4 +31,11 @@ class RawTile:
         
         self.hum = hum
         """Relative humidity measurements, in `%`. [Nx1]"""
-        
+
+
+    def __printProps__(self, prefix="\t"):
+        print(
+            prefix,
+            "Track type Variable |",
+            "Duration [s]", (self.time[-1] - self.time[0]) / 1000
+        )
