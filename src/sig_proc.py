@@ -192,7 +192,7 @@ def std(x: list):
     return math.sqrt(variance(x))
 
 
-def trapz(x: list, dt=0.01):
+def cumtrapz(x: list, dt=0.01):
     """Computes the trapezoidal integration of the input signal `x`.
     
     Assumes a `dt` of 0.01seconds = 100Hz, otherwise override it.

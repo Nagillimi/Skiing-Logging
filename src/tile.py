@@ -1,6 +1,7 @@
 from jump import JUMP_THRESHOLD_MG, Jump
 from raw_tile import RawTile
 from registration import Registration
+from static_registration import StaticRegistration
 import stitch
 from imu import IMU
 from sig_proc_np import identifyRangesBelowTH, length, lowpass, lowpass
@@ -13,22 +14,6 @@ class Tile:
             raw: RawTile,
     ):
         self.time = raw.time
-        """Time vector, in `s`. [Nx1]"""
-
-        print('raw.accel.shape:', raw.accel.shape)
-        print('raw.accel[0, 0]', raw.accel[0, 0])
-        print('raw.accel[0, 1]', raw.accel[0, 1])
-        print('raw.accel[0, 2]', raw.accel[0, 2])
-        print('raw.gyro[0, 0]', raw.gyro[0, 0])
-        print('raw.gyro[0, 1]', raw.gyro[0, 1])
-        print('raw.gyro[0, 2]', raw.gyro[0, 2])
-        print('raw.mag[0, 0]', raw.mag[0, 0])
-        print('raw.mag[0, 1]', raw.mag[0, 1])
-        print('raw.mag[0, 2]', raw.mag[0, 2])
-        print('raw.pres[0]', raw.pres[0])
-        print('raw.temp[0]', raw.temp[0])
-        print('raw.hum[0]', raw.hum[0])
-
         self.constructProcessedSignals(raw)
 
 
@@ -156,7 +141,10 @@ class Tile:
             self.mG_lpf,
             JUMP_THRESHOLD_MG if override_th is None else override_th
         )
-        self.jumps = [Jump(el, self.mG_lpf, self.mG, self.gyro) for el in lowG_els]
+        self.jumps = [
+            Jump(lowG_els[row], self.mG_lpf, self.mG, self.gyro_v)
+            for row in range(lowG_els.shape[0])
+        ]
 
 
     def computeStaticRegistrations(self):
@@ -165,12 +153,24 @@ class Tile:
         Store with an attached timestamp, so that the system computes boot orientations based on new
         registrations (if any pass the tests!)
         """
-        self.qSB6 = [Registration]
-        self.qSB9 = [Registration]
+        static_reg6 = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu6)
+        static_reg9 = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu9)
+        self.qSB_6 = static_reg6.registrations
+        self.qSB_9 = static_reg9.registrations
 
 
     def computeTurns(self):
         """Identify all turn-based kinematics."""
+
+
+    @property
+    def time(self) -> np.ndarray:
+        """Time vector, in `s`. [Nx1]"""
+        return self.__time
+    
+    @time.setter
+    def time(self, t):
+        self.__time = t
 
 
     @property
@@ -304,5 +304,5 @@ class Tile:
         return self.__jumps
     
     @jumps.setter
-    def jumps(self, qsb9):
-        self.__jumps = qsb9
+    def jumps(self, js):
+        self.__jumps = js

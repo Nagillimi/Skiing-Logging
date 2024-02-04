@@ -7,13 +7,12 @@ def groupClosePointsIntoRanges(idxs: np.ndarray, th=2):
     """Return np.ndarray of ranges of sequential points grouped by closeness,
     whose changes are separated by values greater than `th`
     """
-    # TODO actually put this into np logic
     ranges = []
     if len(idxs) == 0:
         return np.zeros((0, 0))
     x1 = idxs[0]
     x2 = idxs[-1]
-    for i in range(len(idxs) - 1):
+    for i in range(idxs.shape[0] - 1):
         if idxs[i + 1] - idxs[i] > th:
             ranges.append([x1, idxs[i]])
             x1 = idxs[i + 1]
@@ -30,7 +29,7 @@ def idxsUnderTH(x: np.ndarray, th=200):
     """Return a np.ndarray of indicies of the input signal `x` whose elements fall
     below `th`.
     """
-    return np.where(x < th)
+    return np.where(x < th)[0]
 
 
 def length(x: np.ndarray):
@@ -69,9 +68,10 @@ def makeContinuousRange3dof(x: np.ndarray, fix_0=True, fix_1=True, fix_2=True):
 def maxIndex(x: np.ndarray, r=None):
     """Population max index with of input signal `x`"""
     if r is None:
-        return np.argmax(window)
+        return np.argmax(x)
     if r[0] == r[1]:
         return r[0]
+    
     window = x[r[0]:r[1]]
     return r[0] + np.argmax(window)
 
@@ -84,9 +84,10 @@ def mse(x1: np.ndarray, x2: np.ndarray):
 def minIndex(x: np.ndarray, r=None):
     """Population min index with of input signal `x`"""
     if r is None:
-        return np.argmin(window)
+        return np.argmin(x)
     if r[0] == r[1]:
         return r[0]
+    
     window = x[r[0]:r[1]]
     return r[0] + np.argmin(window)
 

@@ -1,4 +1,5 @@
 from sig_proc_np import maxIndex, minIndex
+from sig_proc import cumtrapz
 from stat_tests import StatTests as ST
 import numpy as np
 
@@ -20,15 +21,15 @@ class Jump:
         self.confidence = 0.
         self.tests_passed = 0
         self.total_tests = 0
+
         self.identify(print_out=print_out)
 
 
     @property
-    def airTime(self):
+    def air_time(self):
         """Calculate the air time from `liftoff_idx` and the beginning of the landing, `touch_idx`"""
         # indices are in 100Hz
         return (self.touch_idx - self.liftoff_idx) / 100
-
 
     @property
     def distance(self):
@@ -38,16 +39,16 @@ class Jump:
         Note, this assumes that the only other acceleration next to gravity is pure motion.
         Friction and drag are neglected.
         """
-        # integrate (1G - mG_lpf) to get velocity
-        vel = np.trapz(self.mG_lpf)
+        # integrate (mG_lpf - 1G) to get velocity
+        vel = cumtrapz(self.mG_lpf - 1)
         mean_air_time_vel = np.mean(vel[self.liftoff_idx:self.touch_idx])
-        return mean_air_time_vel * self.airTime
+        return mean_air_time_vel * self.air_time
 
 
     def computeMinIndex(self, print_out=False):
         self.lowest_mG_lpf = self.mG_lpf[self.lowG_range[0]]
         self.lowest_mG = self.mG[self.lowG_range[0]]
-        if not self.lowG_range[0] == self.lowG_range[1]:
+        if self.lowG_range[0] != self.lowG_range[1]:
             self.lowest_mG_lpf = min(self.mG_lpf[self.lowG_range[0]:self.lowG_range[1]])
             self.lowest_mG = min(self.mG[self.lowG_range[0]:self.lowG_range[1]])
 

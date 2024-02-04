@@ -1,5 +1,5 @@
 import os
-from jump import JUMP_THRESHOLD_MG
+from jump import JUMP_THRESHOLD_MG, Jump
 from sig_proc import mean, std
 
 JUMP_HEADER = 'mG_th,'\
@@ -38,14 +38,14 @@ def createDataFile(name, header):
     Checks to see if the logfile already exists, then overwrites it.
     """
     # single log file across all tracks, used to train future ml models
-    if not os.path.exists(os.path.join(os.getcwd(), 'logs')):
-        os.mkdir(os.path.join(os.getcwd(), 'logs'))
+    if not os.path.exists(os.path.join(os.getcwd().split('src')[0], 'logs')):
+        os.mkdir(os.path.join(os.getcwd().split('src')[0], 'logs'))
     
     # delete previous file with matching name
-    if os.path.exists(os.path.join(os.getcwd(), name)):
-        os.remove(os.path.join(os.getcwd(), name))
+    if os.path.exists(os.path.join(os.getcwd().split('src')[0], 'logs/', name)):
+        os.remove(os.path.join(os.getcwd().split('src')[0], 'logs/', name))
 
-    file_train = open(name, "w")
+    file_train = open(os.path.join(os.getcwd().split('src')[0], 'logs/', name), "w")
     file_train.write(header)
     return file_train
 
@@ -55,7 +55,7 @@ def createJumpDataFile(name):
     return createDataFile(name, JUMP_HEADER)
 
 
-def constructJumpLine(jump):
+def constructJumpLine(jump: Jump):
     line = f'{JUMP_THRESHOLD_MG},'
     line += f'{jump.lowG_range[0]},'
     line += f'{jump.lowG_range[1]},'
