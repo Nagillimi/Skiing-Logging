@@ -152,6 +152,8 @@ def mae(x1: list, x2: list):
 
 def maxIndex(x: list, r=None):
     """Population max index with of input signal `x`"""
+    if len(x) == 0:
+        return -1
     if r is None:
         return x.index(max(x))
     if r[0] == r[1]:
@@ -174,6 +176,8 @@ def mse(x1: list, x2: list):
 
 def minIndex(x: list, r=None):
     """Population min index with of input signal `x`"""
+    if len(x) == 0:
+        return -1
     if r is None:
         return x.index(min(x))
     if r[0] == r[1]:

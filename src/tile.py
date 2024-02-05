@@ -279,7 +279,7 @@ class Tile:
 
 
     @property
-    def qSB_6(self) -> [Registration]:
+    def qSB_6(self) -> list[Registration]:
         """Registration for sensor to boot frame rotations, based on 6dof. [1x4]"""
         return self.__qSB_6
     
@@ -289,7 +289,7 @@ class Tile:
         
     
     @property
-    def qSB_9(self) -> [Registration]:
+    def qSB_9(self) -> list[Registration]:
         """Registration for sensor to boot frame rotations, based on 9dof. [1x4]"""
         return self.__qSB_9
     

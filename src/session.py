@@ -30,12 +30,12 @@ class Session:
             return 
         
         # these will be called internal to Tile, but for now
-        self.tile.computeJumps()
+        # self.tile.computeJumps()
         self.tile.computeStaticRegistrations()
         self.tile.computeTurns()
 
         # build logging files
-        self.logJumpData()
+        # self.logJumpData()
 
 
     def logJumpData(self):

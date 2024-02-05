@@ -55,18 +55,20 @@ def makeContinuousRange3dof(x: np.ndarray, fix_0=True, fix_1=True, fix_2=True):
     
     Returns the ndarray, with fixed zero crossings on each column signal individually.
     """
-    rollFix, roll_skips = makeContinuousRange(x[:, 0].tolist(), full_scale=180)
-    pitchFix, pitch_skips = makeContinuousRange(x[:, 1].tolist(), full_scale=180)
-    yawFix, yaw_skips = makeContinuousRange(x[:, 2].tolist())
+    rollFix, roll_skips = makeContinuousRange(x[:, 0].tolist(), full_scale=180) if fix_0 else [], []
+    pitchFix, pitch_skips = makeContinuousRange(x[:, 1].tolist(), full_scale=180) if fix_1 else [], []
+    yawFix, yaw_skips = makeContinuousRange(x[:, 2].tolist()) if fix_2 else [], []
     return np.transpose([
-        np.array(rollFix) if len(roll_skips) > 0 and fix_0 is True else x[:, 0],
-        np.array(pitchFix) if len(pitch_skips) > 0 and fix_1 is True else x[:, 1],
-        np.array(yawFix) if len(yaw_skips) > 0 and fix_2 is True else x[:, 2],
+        np.array(rollFix) if len(roll_skips) > 0 else x[:, 0],
+        np.array(pitchFix) if len(pitch_skips) > 0 else x[:, 1],
+        np.array(yawFix) if len(yaw_skips) > 0 else x[:, 2],
     ])
 
 
 def maxIndex(x: np.ndarray, r=None):
     """Population max index with of input signal `x`"""
+    if x.shape[0] == 0:
+        return -1
     if r is None:
         return np.argmax(x)
     if r[0] == r[1]:
@@ -83,6 +85,8 @@ def mse(x1: np.ndarray, x2: np.ndarray):
 
 def minIndex(x: np.ndarray, r=None):
     """Population min index with of input signal `x`"""
+    if x.shape[0] == 0:
+        return -1
     if r is None:
         return np.argmin(x)
     if r[0] == r[1]:

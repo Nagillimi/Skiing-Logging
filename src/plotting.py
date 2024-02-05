@@ -60,7 +60,7 @@ def plot3DofSignalWithAlt(t, a, x, y, z, signal="", r=[0, -1]):
 def plotAltAcc(track: Tile, r=[0, -1]):
     return plot3DofSignalWithAlt(
         track.time,
-        track.corrected_alt,
+        track.alt_lpf,
         track.ax, track.ay, track.az,
         "Accelerometer",
         r=r
@@ -70,7 +70,7 @@ def plotAltAcc(track: Tile, r=[0, -1]):
 def plotAltGyr(track: Tile, r=[0, -1]):
     return plot3DofSignalWithAlt(
         track.time,
-        track.corrected_alt,
+        track.alt_lpf,
         track.ax, track.ay, track.az,
         "Gyroscope",
         r=r
@@ -80,7 +80,7 @@ def plotAltGyr(track: Tile, r=[0, -1]):
 def plotAltMag(track: Tile, r=[0, -1]):
     return plot3DofSignalWithAlt(
         track.time,
-        track.corrected_alt,
+        track.alt_lpf,
         track.ax, track.ay, track.az,
         "Mangnetometer",
         r=r
@@ -90,7 +90,7 @@ def plotAltMag(track: Tile, r=[0, -1]):
 def plotTileRuns(runs: [Tile]):
     plt.rc('lines', linewidth=1)
     fig, ax = plt.subplots()
-    for i in range(len(runs)): ax.plot(runs[i].time, runs[i].corrected_alt, label=['Tile Run', i])
+    for i in range(len(runs)): ax.plot(runs[i].time, runs[i].alt_lpf, label=['Tile Run', i])
     ax.set_title('Functional method for the Synchronized Tile vs. Stitched Tile (runs only from F6P timestamps, offset from A50)', wrap=True)
     
     plt.show()
@@ -103,7 +103,7 @@ def plotJumpAnalysis(track: TileTrack, jump_idx: int, run_number=1):
     air_r = jump.air_range
     landing_r = jump.landing_range
     mg_raw = track.mG
-    mg_filt = track.mG_lpf()
+    mg_filt = track.mG_lpf
     gyro = track.gyro
 
     # plot indices
@@ -142,3 +142,56 @@ def plotAllJumpAnalyses(runs):
     for i, run in enumerate(runs):
         for j in range(len(run.jumps)):
             _ = plotJumpAnalysis(run, j, i)
+
+
+def plotTileWithStillZones(tile: Tile, still_ranges, r=[0, -1]):
+    def addStillZones(ax, t, ranges, r):
+        for range in ranges:
+            if tile.time[range[0]] < tile.time[r[0]] or tile.time[range[1]] > tile.time[r[1]]: 
+                continue
+            ax.axvspan(t[range[0]], t[range[1]], color='green', alpha=0.25)
+
+    tile_euler6 = tile.imu6.euler
+    tile_euler9 = tile.imu9.euler
+    plt.rc('lines', linewidth=1)
+    fig, ax = plt.subplots(6, figsize=(15, 10))
+
+    ax[0].plot(tile.time[r[0]:r[1]], tile.alt_lpf[r[0]:r[1]])
+    addStillZones(ax[0], tile.time, still_ranges, r)
+    ax[0].set_title('All Tile Altitude with Still Zones', wrap=True)
+
+    ax[1].plot(tile.time[r[0]:r[1]], tile_euler6[r[0]:r[1], 0], label='6dof')
+    ax[1].plot(tile.time[r[0]:r[1]], tile_euler9[r[0]:r[1], 0], label='9dof')
+    addStillZones(ax[1], tile.time, still_ranges, r)
+    ax[1].set_title('All Tile Roll with Still Zones', wrap=True)
+    ax[1].legend()
+
+    ax[2].plot(tile.time[r[0]:r[1]], tile_euler6[r[0]:r[1], 1], label='6dof')
+    ax[2].plot(tile.time[r[0]:r[1]], tile_euler9[r[0]:r[1], 1], label='9dof')
+    addStillZones(ax[2], tile.time, still_ranges, r)
+    ax[2].set_title('All Tile Pitch with Still Zones', wrap=True)
+    ax[2].legend()
+
+    ax[3].plot(tile.time[r[0]:r[1]], tile_euler6[r[0]:r[1], 2], label='6dof')
+    ax[3].plot(tile.time[r[0]:r[1]], tile_euler9[r[0]:r[1], 2], label='9dof')
+    addStillZones(ax[3], tile.time, still_ranges, r)
+    ax[3].set_title('All Tile Yaw with Still Zones', wrap=True)
+    ax[3].legend()
+
+    ax[4].plot(tile.time[r[0]:r[1]], tile.mG_lpf[r[0]:r[1]])
+    addStillZones(ax[4], tile.time, still_ranges, r)
+    ax[4].set_title('All Tile Filtered mG-forces with Still Zones', wrap=True)
+
+    ax[5].plot(tile.time[r[0]:r[1]], tile.mG[r[0]:r[1]])
+    addStillZones(ax[5], tile.time, still_ranges, r)
+    ax[5].set_title('All Tile Unfiltered mG-forces with Still Zones', wrap=True)
+
+    plt.tight_layout()
+    plt.show()
+    return fig
+
+
+def plotAllTileRegistationZones(tile: Tile, still_ranges, r=[0, -1]):
+    _ = plotTileWithStillZones(tile, still_ranges=still_ranges, r=r)
+    brackets = [[r[0]-4000, r[1]+4000] for r in still_ranges]
+    _ = [plotTileWithStillZones(tile, r=bracket, still_ranges=still_ranges) for bracket in brackets]
