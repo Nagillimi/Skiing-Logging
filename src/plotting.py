@@ -2,7 +2,6 @@ from jump import JUMP_THRESHOLD_MG
 from sig_proc import length
 from track import Track
 from tile import Tile
-from tile_track import TileTrack
 import matplotlib.pyplot as plt
 
 def plot_a50_f6p(a: Track, f: Track):
@@ -97,39 +96,39 @@ def plotTileRuns(runs: [Tile]):
     return fig
 
 
-def plotJumpAnalysis(track: TileTrack, jump_idx: int, run_number=1):
-    jump = track.jumps[jump_idx]
+def plotJumpAnalysis(tile: Tile, jump_idx: int, run_number=1):
+    jump = tile.jumps[jump_idx]
     min_i = jump.min_idx
     air_r = jump.air_range
     landing_r = jump.landing_range
-    mg_raw = track.mG
-    mg_filt = track.mG_lpf
-    gyro = track.gyro
+    mg_raw = tile.mG
+    mg_filt = tile.mG_lpf
+    gyro = tile.gyro_v
 
     # plot indices
     i1 = air_r[0]; i2 = landing_r[1]
 
     # convert min idx into ts for x axis
-    min_t = track.time[min_i]
+    min_t = tile.time[min_i]
 
     def markupWithJumpStages(ax):
-        ax.axvspan(track.time[air_r[0]], track.time[air_r[1]], color='green', alpha=0.5)
+        ax.axvspan(tile.time[air_r[0]], tile.time[air_r[1]], color='green', alpha=0.5)
         ax.axvline(x=min_t, ls=':', color='k')
-        ax.axvspan(track.time[landing_r[0]], track.time[landing_r[1]], color='red', alpha=0.5)
+        ax.axvspan(tile.time[landing_r[0]], tile.time[landing_r[1]], color='red', alpha=0.5)
 
     plt.rc('lines', linewidth=1)
     fig, ax = plt.subplots(3, figsize=(8, 6))
 
-    ax[0].plot(track.time[i1:i2], mg_filt[i1:i2])
-    ax[0].plot(track.time[i1:i2], [JUMP_THRESHOLD_MG for _ in mg_filt[i1:i2]], 'k--')
+    ax[0].plot(tile.time[i1:i2], mg_filt[i1:i2])
+    ax[0].plot(tile.time[i1:i2], [JUMP_THRESHOLD_MG for _ in mg_filt[i1:i2]], 'k--')
     markupWithJumpStages(ax[0])
     ax[0].set_title(f'{round(jump.confidence)}% | Run {run_number} Jump {jump_idx + 1} Tile Filtered mG-force (& threshold)', wrap=True)
 
-    ax[1].plot(track.time[i1:i2], mg_raw[i1:i2])
+    ax[1].plot(tile.time[i1:i2], mg_raw[i1:i2])
     markupWithJumpStages(ax[1])
     ax[1].set_title(f'{round(jump.confidence)}% | Run {run_number} Jump {jump_idx + 1}  Tile Unfiltered mG-force', wrap=True)
 
-    ax[2].plot(track.time[i1:i2], gyro[i1:i2])
+    ax[2].plot(tile.time[i1:i2], gyro[i1:i2])
     markupWithJumpStages(ax[2])
     ax[2].set_title(f'{round(jump.confidence)}% | Run {run_number} Jump {jump_idx + 1}  Tile Unfiltered Gyroscope', wrap=True)
     
@@ -193,5 +192,5 @@ def plotTileWithStillZones(tile: Tile, still_ranges, r=[0, -1]):
 
 def plotAllTileRegistationZones(tile: Tile, still_ranges, r=[0, -1]):
     _ = plotTileWithStillZones(tile, still_ranges=still_ranges, r=r)
-    brackets = [[r[0]-4000, r[1]+4000] for r in still_ranges]
+    brackets = [[r[0]-3000, r[1]+3000] for r in still_ranges]
     _ = [plotTileWithStillZones(tile, r=bracket, still_ranges=still_ranges) for bracket in brackets]

@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 @printTracks
-def decodeA50(file, print_out, header):
+def decodeA50(file, print_out=False, header=''):
     csv = pd.read_csv(file)
     l = csv.loc[csv.iloc[:, 0].isnull()].index.to_list()
     nan_indices = [0] + l + [csv.shape[0]]
@@ -55,13 +55,13 @@ def decodeA50(file, print_out, header):
 
 
 @printTracks
-def decodeA50Downhill(file, print_out, header):
+def decodeA50Downhill(file, print_out=False, header=''):
     tracks = decodeA50(file, print_out=False, header="")
     return [track for track in tracks if track.track_type == "Downhill"]
 
 
 @printTracks
-def decodeF6P(file, print_out, header):
+def decodeF6P(file, print_out=False, header=''):
     ts_msb = 631065600 # Add MSB since this is the LSB of the ts https://stackoverflow.com/a/57836047
     csv = pd.read_csv(file, low_memory=False) # no low memory due to columns having data with nonintersecting types
     lap_rows = csv.loc[csv['Message'] == 'lap'].loc[csv['Type'] == 'Data']
@@ -105,7 +105,7 @@ def decodeF6P(file, print_out, header):
 
 
 @printTracks
-def decodeTile(file, print_out, header):
+def decodeTile(file, print_out=False, header=''):
     csv = pd.read_csv(file)
 
     return RawTile(

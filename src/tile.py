@@ -12,9 +12,10 @@ class Tile:
     def __init__(
             self,
             raw: RawTile,
+            print_out=False,
     ):
         self.time = raw.time
-        self.constructProcessedSignals(raw)
+        self.constructProcessedSignals(raw, print_out=print_out)
 
 
     def __printProps__(self, prefix="\t"):
@@ -25,7 +26,7 @@ class Tile:
         )
 
 
-    def constructProcessedSignals(self, raw: RawTile):
+    def constructProcessedSignals(self, raw: RawTile, print_out=False):
         """Constructs all the processed signals for the Tile sensor."""
         self.raw_alt = 44307.694 * (1 - (raw.pres / 1013.25)**0.190284)
         self.raw_alt_lpf = lowpass(self.raw_alt, 1/100, 'butter2')
@@ -35,8 +36,8 @@ class Tile:
         self.accel_lpf = lowpass(raw.accel, 3/100, 'butter2')
         self.mG_lpf = length(self.accel_lpf)
 
-        self.imu6 = IMU(raw.accel, raw.gyro)
-        self.imu9 = IMU(raw.accel, raw.gyro, raw.mag)
+        self.imu6 = IMU(raw.accel, raw.gyro, print_out=print_out)
+        self.imu9 = IMU(raw.accel, raw.gyro, raw.mag, print_out=print_out)
 
 
     def identifyOffsets(self, 
@@ -132,34 +133,31 @@ class Tile:
         self.alt_lpf = self.raw_alt_lpf - alt_offset
 
 
-    def computeJumps(self, override_th=None):
+    def computeJumps(self, print_out=False):
         """Identify all points of low G-force and run the jump id pipeline on each.
         
         Confidence values will be associated with each `Jump` instance.
         """
-        lowG_els = identifyRangesBelowTH(
-            self.mG_lpf,
-            JUMP_THRESHOLD_MG if override_th is None else override_th
-        )
+        lowG_els = identifyRangesBelowTH(self.mG_lpf, JUMP_THRESHOLD_MG)
         self.jumps = [
-            Jump(lowG_els[row], self.mG_lpf, self.mG, self.gyro_v)
+            Jump(lowG_els[row], self.mG_lpf, self.mG, self.gyro_v, print_out)
             for row in range(lowG_els.shape[0])
         ]
 
 
-    def computeStaticRegistrations(self):
+    def computeStaticRegistrations(self, print_out=False):
         """Identifies points for static sensor tile boot registrations.
 
         Store with an attached timestamp, so that the system computes boot orientations based on new
         registrations (if any pass the tests!)
         """
-        static_reg6 = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu6)
-        static_reg9 = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu9)
+        static_reg6 = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu6, print_out)
+        static_reg9 = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu9, print_out)
         self.qSB_6 = static_reg6.registrations
         self.qSB_9 = static_reg9.registrations
 
 
-    def computeTurns(self):
+    def computeTurns(self, print_out=False):
         """Identify all turn-based kinematics."""
 
 

@@ -16,7 +16,7 @@ def printTracks(func):
     """Prints the track details for the decoded file."""
     def wrapper(*args, **kwargs):
         if kwargs.get("print_out") is True:
-            print(kwargs.get("header"))
+            print(kwargs.get("header", "Unknown device"))
         tracks = func(*args, **kwargs)
         if kwargs.get("print_out") is False:
             return tracks

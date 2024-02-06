@@ -64,16 +64,17 @@ class Jump:
         """
         if method == 'std':
             # std-based method, search left and right until the window std dev passes a th
+            N = self.mG.shape[0]
             wsamples = 16
             self.liftoff_idx = self.min_idx
             self.touch_idx = self.min_idx
-            for i in range(len(self.mG[0:self.min_idx]) - wsamples):
+            for i in range(self.min_idx + 1 - wsamples):
                 # build sliding window & test std
                 if np.std(self.mG[self.min_idx - (wsamples + i):self.min_idx - i]) > 400:
                     self.liftoff_idx = self.min_idx - (i + round(wsamples / 2))
                     break
 
-            for i in range(len(self.mG[self.min_idx:-1]) - wsamples):
+            for i in range(N - self.min_idx + 1 - wsamples):
                 if np.std(self.mG[self.min_idx + i:self.min_idx + (wsamples + i)]) > 1000:
                     self.touch_idx = self.min_idx + (i + round(wsamples / 2))
                     break

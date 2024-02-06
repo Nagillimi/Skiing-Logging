@@ -19,9 +19,9 @@ class Session:
         self.a50 = decodeA50(a50_file, print_out, "A50")
         self.f6p = decodeF6P(f6p_file, print_out, "F6P")
 
-        self.tile = Tile(self.raw_tile)
+        self.tile = Tile(self.raw_tile, print_out=print_out)
         if offsets is None:
-            self.tile.identifyOffsets(self.a50)
+            self.tile.identifyOffsets(self.a50, print_out=print_out)
         else:
             self.tile.applyOffsets(offsets[0], offsets[1])
             self.tile.applyTimestamp(self.a50[0].time[0])
@@ -30,9 +30,9 @@ class Session:
             return 
         
         # these will be called internal to Tile, but for now
-        # self.tile.computeJumps()
-        self.tile.computeStaticRegistrations()
-        self.tile.computeTurns()
+        # self.tile.computeJumps(print_out=print_out)
+        self.tile.computeStaticRegistrations(print_out=print_out)
+        # self.tile.computeTurns(print_out=print_out)
 
         # build logging files
         # self.logJumpData()

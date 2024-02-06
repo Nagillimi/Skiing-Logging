@@ -71,40 +71,49 @@ class StaticRegistration:
     
     def computeCoarseStillRanges(self, print_out=False) -> list[list]:
         coarse_ranges = []
+        coarse_addition = 4000
         while True:
             first_idx = coarse_ranges[-1][0] if len(coarse_ranges) > 0 else 0
             latest_peak = self.liftPeakIdx(min_idx=first_idx)
             if latest_peak is None:
                 return coarse_ranges
             
-            latest_run_start = self.runStartIdx(min_idx=latest_peak)
-            if latest_run_start is None:
-                return coarse_ranges
+            # latest_run_start = self.runStartIdx(min_idx=latest_peak)
+            # if latest_run_start is None:
+            #     return coarse_ranges
             
-            coarse_ranges.append([latest_peak, latest_run_start])
-            if print_out: print('Coarse static registration range found:', [latest_peak, latest_run_start])
+            # coarse_ranges.append([latest_peak, latest_run_start])
+            coarse_ranges.append([latest_peak, latest_peak + coarse_addition])
+            # if print_out: print('Coarse static registration range found:', [latest_peak, latest_run_start])
+            if print_out: print('Coarse static registration range found:', [latest_peak, latest_peak + coarse_addition])
 
 
     def testMotionForStillness(self, r):
-        euler_std_th = 3
-        mG_std_th = 50
+        euler_std_th = 5
+        mG_std_th = 200
 
+        # TODO use a non processed signal instead of euler combined
+        #  - ifft of raw gyro, accel
+        #  - 
         return [
             np.std(self.imu.euler_combined[r[0]:r[1]]) < euler_std_th,
             np.std(self.mG[r[0]:r[1]]) < mG_std_th,
         ]
     
 
-    def computeFineStillRanges(self, min_s=3, r=[0, -1], print_out=False) -> list[list]:
+    def computeFineStillRanges(self, min_s=0.25, r=[0, -1], print_out=False) -> list[list]:
         """Identifies ranges of still motion with sampling length `min_s` in seconds
         and returns them as a list of lists representing their indices.
         """
-        wsamples = min_s * 100
+        wsamples = round(min_s * 100)
         search = (r[1] - r[0]) - wsamples
         coarse_mult = wsamples
         fine_mult = round(coarse_mult / 10)
         still_ranges = []
         prev_tail = r[0]
+        if search < 0:
+            return still_ranges
+        
         if print_out:
             print('search:', search)
             print('coarse_mult:', coarse_mult)
@@ -118,18 +127,18 @@ class StaticRegistration:
                 tail = head + wsamples
                 
                 if tail >= search + r[0]:
-                    if print_out: print('hit the end of the line. tail >= search:', tail, '>=', search + r[0])
+                    if print_out: print('\thit the end of the line. tail >= search:', tail, '>=', search + r[0])
                     return still_ranges
                 
                 trailing_tests = self.testMotionForStillness([head, tail])
 
-                if print_out: print('j iter:\t', j)
-                if print_out: print('head = prev_tail + coarse_mult * j:\t', head, '=', prev_tail, '+', coarse_mult * j)
-                if print_out: print('tail = head + wsamples:\t', tail, '=', head, '+', wsamples)
-                if print_out: print('still_tests:\t', trailing_tests)
+                if print_out: print('\tj iter:\t', j)
+                if print_out: print('\thead = prev_tail + coarse_mult * j:\t', head, '=', prev_tail, '+', coarse_mult * j)
+                if print_out: print('\ttail = head + wsamples:\t', tail, '=', head, '+', wsamples)
+                if print_out: print('\tstill_tests:\t', trailing_tests)
                 
                 if sum(trailing_tests) == len(trailing_tests):
-                    if print_out: print('\tcoarse range found:\t', head, tail)
+                    if print_out: print('\t\tcoarse range found:\t', head, tail)
                     refinedHead = None
                     refinedTail = None
                     for k in range(search - j):
@@ -140,42 +149,42 @@ class StaticRegistration:
                         fine_trailing_tail = tail + fine_mult * (k + 1)
 
                         if print_out: 
-                            print('\tk iter:\t', k)
-                            print('\tfine_leading_head = head - fine_mult * k + 1:\t', fine_leading_head, '=', head, '-', fine_mult, '*', (k + 1))
-                            print('\tfine_leading_tail = tail - fine_mult * k + 1:\t', fine_leading_tail, '=', tail, '-', fine_mult, '*', (k + 1))
-                            print('\tfine_trailing_head = head + fine_mult * k + 1:\t', fine_trailing_head, '=', head, '+', fine_mult, '*', (k + 1))
-                            print('\tfine_trailing_tail = tail + fine_mult * k + 1:\t', fine_trailing_tail, '=', tail, '+', fine_mult, '*', (k + 1))
+                            print('\t\tk iter:\t', k)
+                            print('\t\tfine_leading_head = head - fine_mult * k + 1:\t', fine_leading_head, '=', head, '-', fine_mult, '*', (k + 1))
+                            print('\t\tfine_leading_tail = tail - fine_mult * k + 1:\t', fine_leading_tail, '=', tail, '-', fine_mult, '*', (k + 1))
+                            print('\t\tfine_trailing_head = head + fine_mult * k + 1:\t', fine_trailing_head, '=', head, '+', fine_mult, '*', (k + 1))
+                            print('\t\tfine_trailing_tail = tail + fine_mult * k + 1:\t', fine_trailing_tail, '=', tail, '+', fine_mult, '*', (k + 1))
 
                         if refinedHead is None:
                             if fine_leading_head <= 0:
                                 refinedHead = 0
-                                if print_out: print('\t\trefined head set:\t', refinedHead)
+                                if print_out: print('\t\t\trefined head set:\t', refinedHead)
                             
                             leading_tests = self.testMotionForStillness([fine_leading_head, fine_leading_tail])
-                            if print_out: print('\tleading_tests:\t', leading_tests)
+                            if print_out: print('\t\tleading_tests:\t', leading_tests)
 
                             if sum(leading_tests) < len(leading_tests):
                                 refinedHead = fine_leading_head + fine_mult
-                                if print_out: print('\t\trefined head set:\t', refinedHead)
+                                if print_out: print('\t\t\trefined head set:\t', refinedHead)
 
                         if refinedTail is None:
                             if fine_trailing_tail >= search:
                                 refinedTail = fine_trailing_tail
-                                if print_out: print('\t\trefined tail set:\t', refinedTail)
+                                if print_out: print('\t\t\trefined tail set:\t', refinedTail)
 
                             trailing_tests = self.testMotionForStillness([fine_trailing_head, fine_trailing_tail])
-                            if print_out: print('\ttrailing_tests:\t', trailing_tests)
+                            if print_out: print('\t\ttrailing_tests:\t', trailing_tests)
 
                             if sum(trailing_tests) < len(trailing_tests):
                                 refinedTail = fine_trailing_tail - fine_mult
-                                if print_out: print('\t\trefined tail set:\t', refinedTail)
+                                if print_out: print('\t\t\trefined tail set:\t', refinedTail)
 
                         if refinedHead is not None and refinedTail is not None:
-                            if refinedHead <= prev_tail:
-                                if print_out: print('\t\tstitched to previous set:\t', [still_ranges[-1][0], refinedTail])
+                            if refinedHead <= prev_tail and len(still_ranges) > 0:
+                                if print_out: print('\t\t\tstitched to previous set:\t', [still_ranges[-1][0], refinedTail])
                                 still_ranges[-1] = [still_ranges[-1][0], refinedTail]
                             else:
-                                if print_out: print('\t\trefined still range set:\t', [refinedHead, refinedTail])
+                                if print_out: print('\t\t\trefined still range set:\t', [refinedHead, refinedTail])
                                 still_ranges.append([refinedHead, refinedTail])
                             prev_tail = refinedTail
                             break
@@ -183,15 +192,15 @@ class StaticRegistration:
         return still_ranges
 
 
-    def longestFineStillRange(self, r=[0, -1], print_out=False) -> list:
+    def longestFineStillRange(self, r=[0, -1], print_out=False) -> list | None:
         """Uses the coarse range from the lift peak and searches for still ranges, returning the longest range."""
         fine_ranges = self.computeFineStillRanges(r=r, print_out=print_out)
-        fine_sizes = [p[1] - p[0] for p in fine_ranges]
-        if print_out: print('longestFineStillRange().fine_sizes:', fine_sizes)
-        return fine_ranges[maxIndex(fine_sizes)]
+        if print_out: print('Fine static registration ranges:', fine_ranges)
+        fine_sizes = [p[1] - p[0] for p in fine_ranges if len(p) > 0]
+        return fine_ranges[maxIndex(fine_sizes)] if len(fine_sizes) > 0 else None
 
 
-    def assignRegistrationsFromRanges(self):
+    def assignRegistrationsFromRanges(self, print_out=False):
         """Computes the static registration based on the avg orientation within the discovered static
         index `idx`.        
         """
@@ -200,64 +209,35 @@ class StaticRegistration:
                 ts=self.time[r[1]],
                 range=r,
                 avg_quat=avgQuat(self.imu.quat[r[0]:r[1], :])
-            ) for r in self.ranges
+            ) for r in self.ranges if r is not None
         ]
+        if print_out: print('Identified', len(self.registrations), 'fine static ranges.')
 
 
     def identify(self, print_out=False):
         """Identifies first the coarse range fro mthe lift peak, then identifies the longest moment of stillness 
         in that range for an average registration for sensor to boot reorientations.
         """
+        if print_out: print('Identifying static ranges up to index:', self.time.shape[0])
         coarse_ranges = self.computeCoarseStillRanges(print_out=print_out)
         self.ranges = [
             self.longestFineStillRange(r=coarse_range, print_out=print_out) 
             for coarse_range in coarse_ranges
         ]
-        self.assignRegistrationsFromRanges()
+        self.assignRegistrationsFromRanges(print_out=print_out)
 
 
     @property
-    def time(self) -> np.ndarray:
-        """Time vector, in `s`. [Nx1]"""
-        return self.__time
+    def liftpeak_ranges(self):
+        return self.__liftpeak_ranges
     
-    @time.setter
-    def time(self, t):
-        self.__time = t
+    @liftpeak_ranges.setter
+    def liftpeak_ranges(self, lpr):
+        self.__liftpeak_ranges = lpr
 
 
     @property
-    def alt(self) -> np.ndarray:
-        """Altitude signal to use for static registration range identification (on lifts)."""
-        return self.__alt
-    
-    @alt.setter
-    def alt(self, a):
-        self.__alt = a
-
-
-    @property
-    def imu(self) -> IMU:
-        """Orientation signals to use for static registration range identification (on lifts)."""
-        return self.__imu
-    
-    @imu.setter
-    def imu(self, i):
-        self.__imu = i
-
-
-    @property
-    def mG(self) -> np.ndarray:
-        """Unfiltered mG-forces (3D accelerometer vector magnitude). [Nx1]"""
-        return self.__mG
-
-    @mG.setter
-    def mG(self, mg):
-        self.__mG = mg
-
-
-    @property
-    def ranges(self) -> list[list]:
+    def ranges(self) -> list[list | None]:
         """The identified ranges of indices that represent a static registration based on the `alt` signal."""
         return self.__ranges
     

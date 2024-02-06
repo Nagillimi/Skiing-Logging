@@ -50,18 +50,15 @@ def mae(x1: np.ndarray, x2: np.ndarray):
     return np.mean(np.abs(x1 - x2))
 
 
-def makeContinuousRange3dof(x: np.ndarray, fix_0=True, fix_1=True, fix_2=True):
+def makeContinuousRange3dof(x: np.ndarray, fix_0=True, fix_1=True, fix_2=True, print_out=False):
     """Runs `fixZeroCrossing()` for each column signal in the input ndarray `x`
     
     Returns the ndarray, with fixed zero crossings on each column signal individually.
     """
-    rollFix, roll_skips = makeContinuousRange(x[:, 0].tolist(), full_scale=180) if fix_0 else [], []
-    pitchFix, pitch_skips = makeContinuousRange(x[:, 1].tolist(), full_scale=180) if fix_1 else [], []
-    yawFix, yaw_skips = makeContinuousRange(x[:, 2].tolist()) if fix_2 else [], []
     return np.transpose([
-        np.array(rollFix) if len(roll_skips) > 0 else x[:, 0],
-        np.array(pitchFix) if len(pitch_skips) > 0 else x[:, 1],
-        np.array(yawFix) if len(yaw_skips) > 0 else x[:, 2],
+        np.array(makeContinuousRange(x[:, 0].tolist(), print_out=print_out)[0]) if fix_0 else x[:, 0],
+        np.array(makeContinuousRange(x[:, 1].tolist(), print_out=print_out)[0]) if fix_1 else x[:, 1],
+        np.array(makeContinuousRange(x[:, 2].tolist(), print_out=print_out)[0]) if fix_2 else x[:, 2],
     ])
 
 

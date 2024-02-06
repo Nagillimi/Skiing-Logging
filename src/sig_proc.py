@@ -19,7 +19,7 @@ def diff(x1: list, x2: list):
     return [x1[i] - x2[i] for i in range(len(x1))]
 
 
-def makeContinuousRange(x: list, m=0.5, full_scale=360):
+def makeContinuousRange(x: list, m=0.5, full_scale=360, print_out=False):
     """Fixes the zero crossings in a signal that is previously clamped to a 
     single scale range of `single_scale`.
 
@@ -35,25 +35,40 @@ def makeContinuousRange(x: list, m=0.5, full_scale=360):
     """
     y = x
     skips = []
-    for i in range(len(x)):
+    N = len(x)
+    m_FS = m * full_scale
+    p = 0
+    if print_out: print('Making signal continuous based on FS range:', full_scale)
+
+    for i in range(N):
         if i == 0: continue
-        if x[i] > x[i - 1] and abs(x[i] - x[i - 1]) >= (m * full_scale):
+        if print_out:
+            current_p = round(i/N*100)
+            if current_p % 5 == 0 and p != current_p:
+                print('makeContinuousRange() progress', current_p, '%')
+                p = current_p
+
+        xi_minus_xi1 = x[i] - x[i - 1]
+        abs_xi_minus_xi1 = abs(xi_minus_xi1)
+
+        if xi_minus_xi1 > 0 and abs_xi_minus_xi1 >= m_FS:
             skips.append([i - 1, i])
-            for j in range(len(x) - i):
+            for j in range(N - i):
                 y[i + j] = x[i + j] - full_scale
-                if x[i] < x[i - 1] and abs(x[i] - x[i - 1]) >= (m * full_scale):
+                if xi_minus_xi1 < 0 and abs_xi_minus_xi1 >= m_FS:
                     skips.append([i - 1, i])
                     break
             continue
 
-        if x[i] < x[i - 1] and abs(x[i] - x[i - 1]) >= (m * full_scale):
+        if xi_minus_xi1 < 0 and abs_xi_minus_xi1 >= m_FS:
             skips.append([i - 1, i])
-            for j in range(len(x) - i):
+            for j in range(N - i):
                 y[i + j] = x[i + j] + full_scale
-                if x[i] > x[i - 1] and abs(x[i] - x[i - 1]) >= (m * full_scale):
+                if xi_minus_xi1 > 0 and abs_xi_minus_xi1 >= m_FS:
                     skips.append([i - 1, i])
                     break
             continue
+    if print_out: print('makeContinuousRange() skips found:', len(skips))
     return y, skips
 
     # print(len(x))
