@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 @printTracks
-def decodeA50(file, print_out=False, header=''):
+def decodeA50(file, print_out, header=''):
     csv = pd.read_csv(file)
     l = csv.loc[csv.iloc[:, 0].isnull()].index.to_list()
     nan_indices = [0] + l + [csv.shape[0]]
@@ -55,8 +55,8 @@ def decodeA50(file, print_out=False, header=''):
 
 
 @printTracks
-def decodeA50Downhill(file, print_out=False, header=''):
-    tracks = decodeA50(file, print_out=False, header="")
+def decodeA50Downhill(file, print_out, header=''):
+    tracks = decodeA50(file, print_out=print_out, header="")
     return [track for track in tracks if track.track_type == "Downhill"]
 
 
@@ -105,7 +105,7 @@ def decodeF6P(file, print_out=False, header=''):
 
 
 @printTracks
-def decodeTile(file, print_out=False, header=''):
+def decodeTile(file, print_out, header=''):
     csv = pd.read_csv(file)
 
     return RawTile(

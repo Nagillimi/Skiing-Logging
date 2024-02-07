@@ -17,12 +17,13 @@ def printTracks(func):
     def wrapper(*args, **kwargs):
         if kwargs.get("print_out") is True:
             print(kwargs.get("header", "Unknown device"))
+
         tracks = func(*args, **kwargs)
-        if kwargs.get("print_out") is False:
-            return tracks
-        if isinstance(tracks, list):
-            [track.__printProps__() for track in tracks]
-        else:
-            tracks.__printProps__()
+
+        if kwargs.get("print_out") is True:        
+            if isinstance(tracks, list):
+                [track.__printProps__() for track in tracks]
+            else:
+                tracks.__printProps__()
         return tracks
     return wrapper

@@ -1,5 +1,4 @@
 from jump import JUMP_THRESHOLD_MG
-from sig_proc import length
 from track import Track
 from tile import Tile
 import matplotlib.pyplot as plt
@@ -143,46 +142,52 @@ def plotAllJumpAnalyses(runs):
             _ = plotJumpAnalysis(run, j, i)
 
 
-def plotTileWithStillZones(tile: Tile, still_ranges, r=[0, -1]):
-    def addStillZones(ax, t, ranges, r):
+def plotTileWithStillZones(tile: Tile, r=[0, -1]):
+    def addStillZones(ax, t, ranges, r, _color='green'):
         for range in ranges:
             if tile.time[range[0]] < tile.time[r[0]] or tile.time[range[1]] > tile.time[r[1]]: 
                 continue
-            ax.axvspan(t[range[0]], t[range[1]], color='green', alpha=0.25)
+            ax.axvspan(t[range[0]], t[range[1]], color=_color, alpha=0.25)
 
-    tile_euler6 = tile.imu6.euler
-    tile_euler9 = tile.imu9.euler
+    fine_rs = [r for r in tile.static_registration.ranges if r is not None]
+    coarse_rs = tile.static_registration.coarse_ranges
+    t = tile.time[r[0]:r[1]]
+    euler = tile.imu.euler[r[0]:r[1], :]
+
     plt.rc('lines', linewidth=1)
     fig, ax = plt.subplots(6, figsize=(15, 10))
 
-    ax[0].plot(tile.time[r[0]:r[1]], tile.alt_lpf[r[0]:r[1]])
-    addStillZones(ax[0], tile.time, still_ranges, r)
+    ax[0].plot(t, tile.alt_lpf[r[0]:r[1]])
+    addStillZones(ax[0], tile.time, fine_rs, r)
+    if coarse_rs is not None: addStillZones(ax[0], tile.time, coarse_rs, r, 'red')
     ax[0].set_title('All Tile Altitude with Still Zones', wrap=True)
 
-    ax[1].plot(tile.time[r[0]:r[1]], tile_euler6[r[0]:r[1], 0], label='6dof')
-    ax[1].plot(tile.time[r[0]:r[1]], tile_euler9[r[0]:r[1], 0], label='9dof')
-    addStillZones(ax[1], tile.time, still_ranges, r)
+    ax[1].plot(t, euler[:, 0], label='9dof')
+    addStillZones(ax[1], tile.time, fine_rs, r)
+    if coarse_rs is not None: addStillZones(ax[1], tile.time, coarse_rs, r, 'red')
     ax[1].set_title('All Tile Roll with Still Zones', wrap=True)
     ax[1].legend()
 
-    ax[2].plot(tile.time[r[0]:r[1]], tile_euler6[r[0]:r[1], 1], label='6dof')
-    ax[2].plot(tile.time[r[0]:r[1]], tile_euler9[r[0]:r[1], 1], label='9dof')
-    addStillZones(ax[2], tile.time, still_ranges, r)
+    ax[2].plot(t, euler[:, 1], label='9dof')
+    addStillZones(ax[2], tile.time, fine_rs, r)
+    if coarse_rs is not None: addStillZones(ax[2], tile.time, coarse_rs, r, 'red')
     ax[2].set_title('All Tile Pitch with Still Zones', wrap=True)
     ax[2].legend()
 
-    ax[3].plot(tile.time[r[0]:r[1]], tile_euler6[r[0]:r[1], 2], label='6dof')
-    ax[3].plot(tile.time[r[0]:r[1]], tile_euler9[r[0]:r[1], 2], label='9dof')
-    addStillZones(ax[3], tile.time, still_ranges, r)
+    ax[3].plot(t, euler[:, 2], label='9dof')
+    addStillZones(ax[3], tile.time, fine_rs, r)
+    if coarse_rs is not None: addStillZones(ax[3], tile.time, coarse_rs, r, 'red')
     ax[3].set_title('All Tile Yaw with Still Zones', wrap=True)
     ax[3].legend()
 
-    ax[4].plot(tile.time[r[0]:r[1]], tile.mG_lpf[r[0]:r[1]])
-    addStillZones(ax[4], tile.time, still_ranges, r)
+    ax[4].plot(t, tile.mG_lpf[r[0]:r[1]])
+    addStillZones(ax[4], tile.time, fine_rs, r)
+    if coarse_rs is not None: addStillZones(ax[4], tile.time, coarse_rs, r, 'red')
     ax[4].set_title('All Tile Filtered mG-forces with Still Zones', wrap=True)
 
-    ax[5].plot(tile.time[r[0]:r[1]], tile.mG[r[0]:r[1]])
-    addStillZones(ax[5], tile.time, still_ranges, r)
+    ax[5].plot(t, tile.mG[r[0]:r[1]])
+    addStillZones(ax[5], tile.time, fine_rs, r)
+    if coarse_rs is not None: addStillZones(ax[5], tile.time, coarse_rs, r, 'red')
     ax[5].set_title('All Tile Unfiltered mG-forces with Still Zones', wrap=True)
 
     plt.tight_layout()
@@ -190,7 +195,9 @@ def plotTileWithStillZones(tile: Tile, still_ranges, r=[0, -1]):
     return fig
 
 
-def plotAllTileRegistationZones(tile: Tile, still_ranges, r=[0, -1]):
-    _ = plotTileWithStillZones(tile, still_ranges=still_ranges, r=r)
-    brackets = [[r[0]-3000, r[1]+3000] for r in still_ranges]
-    _ = [plotTileWithStillZones(tile, r=bracket, still_ranges=still_ranges) for bracket in brackets]
+def plotAllTileRegistationZones(tile: Tile, r=[0, -1]):
+    coarse_rs = tile.static_registration.coarse_ranges
+
+    _ = plotTileWithStillZones(tile, r=r)
+    brackets = [[r[0]-3000, r[1]+3000] for r in coarse_rs]
+    _ = [plotTileWithStillZones(tile, r=bracket) for bracket in brackets]

@@ -9,14 +9,13 @@ class StaticRegistration:
     def __init__(
             self,
             time: np.ndarray,
-            alt: np.ndarray,
+            alt_lpf: np.ndarray,
             mG: np.ndarray,
             imu: IMU,
-            print_out=False
-
+            print_out=False,
         ) -> None:
         self.time = time
-        self.alt = alt
+        self.alt_lpf = alt_lpf
         self.mG = mG
         self.imu = imu
 
@@ -36,7 +35,7 @@ class StaticRegistration:
         """
         dx = 1
         fs = 100
-        x = self.alt[min_idx:]
+        x = self.alt_lpf[min_idx:]
         for i in range(int(x.shape[0] / dx)):
             i *= dx
             if i < window_s * fs:
@@ -46,7 +45,7 @@ class StaticRegistration:
         return None
     
 
-    def runStartIdx(self, min_idx, th=20, within_s=30):
+    def runStartIdx(self, min_idx, th=20, within_s=10):
         """Causal!
 
         Returns the index where a run begins based on a drop detection within a certain period
@@ -57,9 +56,9 @@ class StaticRegistration:
         
         Confirms that this is a max over the last period `window_s` seconds.
         """
-        dx = 50
+        dx = 10
         fs = 100
-        x = self.alt[min_idx:]
+        x = self.alt_lpf[min_idx:]
         for i in range(int(x.shape[0] / dx)):
             i *= dx
             if i < within_s * fs:
@@ -69,23 +68,23 @@ class StaticRegistration:
         return None
             
     
-    def computeCoarseStillRanges(self, print_out=False) -> list[list]:
-        coarse_ranges = []
-        coarse_addition = 4000
+    def computeCoarseStillRanges(self, print_out=False):
+        self.coarse_ranges = []
+        # coarse_addition = 4000
         while True:
-            first_idx = coarse_ranges[-1][0] if len(coarse_ranges) > 0 else 0
+            first_idx = self.coarse_ranges[-1][0] if len(self.coarse_ranges) > 0 else 0
             latest_peak = self.liftPeakIdx(min_idx=first_idx)
             if latest_peak is None:
-                return coarse_ranges
+                break
             
-            # latest_run_start = self.runStartIdx(min_idx=latest_peak)
-            # if latest_run_start is None:
-            #     return coarse_ranges
+            latest_run_start = self.runStartIdx(min_idx=latest_peak)
+            if latest_run_start is None:
+                break
             
-            # coarse_ranges.append([latest_peak, latest_run_start])
-            coarse_ranges.append([latest_peak, latest_peak + coarse_addition])
-            # if print_out: print('Coarse static registration range found:', [latest_peak, latest_run_start])
-            if print_out: print('Coarse static registration range found:', [latest_peak, latest_peak + coarse_addition])
+            self.coarse_ranges.append([latest_peak, latest_run_start])
+            # coarse_ranges.append([latest_peak, latest_peak + coarse_addition])
+            if print_out: print('Coarse static registration range found:', [latest_peak, latest_run_start])
+            # if print_out: print('Coarse static registration range found:', [latest_peak, latest_peak + coarse_addition])
 
 
     def testMotionForStillness(self, r):
@@ -122,7 +121,7 @@ class StaticRegistration:
         for i in range(search):
             if print_out: print('i iter:\t', i)
             for j in range(search):
-                # coarse search every 10th idx
+                # coarse search
                 head = prev_tail + coarse_mult * j
                 tail = head + wsamples
                 
@@ -142,7 +141,7 @@ class StaticRegistration:
                     refinedHead = None
                     refinedTail = None
                     for k in range(search - j):
-                        # fine search every idx
+                        # fine search
                         fine_leading_head = head - fine_mult * (k + 1)
                         fine_leading_tail = tail - fine_mult * (k + 1)
                         fine_trailing_head = head + fine_mult * (k + 1)
@@ -156,8 +155,8 @@ class StaticRegistration:
                             print('\t\tfine_trailing_tail = tail + fine_mult * k + 1:\t', fine_trailing_tail, '=', tail, '+', fine_mult, '*', (k + 1))
 
                         if refinedHead is None:
-                            if fine_leading_head <= 0:
-                                refinedHead = 0
+                            if fine_leading_head <= r[0]:
+                                refinedHead = r[0]
                                 if print_out: print('\t\t\trefined head set:\t', refinedHead)
                             
                             leading_tests = self.testMotionForStillness([fine_leading_head, fine_leading_tail])
@@ -168,8 +167,8 @@ class StaticRegistration:
                                 if print_out: print('\t\t\trefined head set:\t', refinedHead)
 
                         if refinedTail is None:
-                            if fine_trailing_tail >= search:
-                                refinedTail = fine_trailing_tail
+                            if fine_trailing_tail >= r[1]:
+                                refinedTail = r[1]
                                 if print_out: print('\t\t\trefined tail set:\t', refinedTail)
 
                             trailing_tests = self.testMotionForStillness([fine_trailing_head, fine_trailing_tail])
@@ -219,26 +218,42 @@ class StaticRegistration:
         in that range for an average registration for sensor to boot reorientations.
         """
         if print_out: print('Identifying static ranges up to index:', self.time.shape[0])
-        coarse_ranges = self.computeCoarseStillRanges(print_out=print_out)
+        self.computeCoarseStillRanges(print_out=print_out)
         self.ranges = [
             self.longestFineStillRange(r=coarse_range, print_out=print_out) 
-            for coarse_range in coarse_ranges
+            for coarse_range in self.coarse_ranges
         ]
         self.assignRegistrationsFromRanges(print_out=print_out)
 
 
+    def getMostRecentRegistration(self, timestamp) -> np.ndarray:
+        """Gets the most recent registration from `self.registrations` based on `timestamp`.
+        
+        If any static registration has a associated timestamp lower than the current `timestamp`,
+        the registration with the highest timestamp underneath it will be returned.
+
+        If no static registration exists belong the current `timestamp`, it returns a zero
+        rotation.
+        """
+        if timestamp < self.registrations[0].ts:
+            return np.array([1, 0, 0, 0])
+        
+        regs_below = [reg.ts < timestamp for reg in self.registrations]
+        return self.registrations[sum(regs_below) - 1].avg_quat
+
+
     @property
-    def liftpeak_ranges(self):
-        return self.__liftpeak_ranges
+    def coarse_ranges(self) -> list[list]:
+        return self.__coarse_ranges
     
-    @liftpeak_ranges.setter
-    def liftpeak_ranges(self, lpr):
-        self.__liftpeak_ranges = lpr
+    @coarse_ranges.setter
+    def coarse_ranges(self, crs):
+        self.__coarse_ranges = crs
 
 
     @property
     def ranges(self) -> list[list | None]:
-        """The identified ranges of indices that represent a static registration based on the `alt` signal."""
+        """The identified ranges of indices that represent a static registration based on the `alt_lpf` signal."""
         return self.__ranges
     
     @ranges.setter

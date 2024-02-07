@@ -1,5 +1,5 @@
 from io import TextIOWrapper
-from datafile import constructJumpLine, createJumpDataFile
+from datafile import constructJumpLine, constructSensorBootLines, createJumpDataFile, createSensorBootDataFile
 from decode import decodeA50, decodeF6P, decodeTile
 from jump import JUMP_THRESHOLD_MG
 from tile import Tile
@@ -30,12 +30,13 @@ class Session:
             return 
         
         # these will be called internal to Tile, but for now
-        # self.tile.computeJumps(print_out=print_out)
+        self.tile.computeJumps(print_out=print_out)
         self.tile.computeStaticRegistrations(print_out=print_out)
+        self.tile.computeBootOrientations(print_out=print_out)
         # self.tile.computeTurns(print_out=print_out)
 
-        # build logging files
-        # self.logJumpData()
+        self.logJumpData()
+        self.logSensorBootData()
 
 
     def logJumpData(self):
@@ -44,6 +45,12 @@ class Session:
         self.jump_train_file.close()
 
 
+    def logSensorBootData(self):
+        self.euler_sensor_boot_file = createSensorBootDataFile(f'tile-{self.a50[0].date}-sensor-boot-frame.csv')
+        self.euler_sensor_boot_file.write(constructSensorBootLines(self.tile))
+        self.euler_sensor_boot_file.close()
+    
+
     @property
     def jump_train_file(self) -> TextIOWrapper:
         return self.__jump_train_file
@@ -51,4 +58,13 @@ class Session:
     @jump_train_file.setter
     def jump_train_file(self, f):
         self.__jump_train_file = f
+
+
+    @property
+    def euler_sensor_boot_file(self) -> TextIOWrapper:
+        return self.__euler_sensor_boot_file
+
+    @euler_sensor_boot_file.setter
+    def euler_sensor_boot_file(self, f):
+        self.__euler_sensor_boot_file = f
 

@@ -1,6 +1,11 @@
 import os
+
+import numpy as np
 from jump import JUMP_THRESHOLD_MG, Jump
+from quat import quatToEuler
 from sig_proc import mean, std
+from sig_proc_np import makeContinuousRange3dof
+from tile import Tile
 
 JUMP_HEADER = 'mG_th,'\
     + 'lowG_range_1,lowG_range_2,lowG_range,'\
@@ -28,7 +33,13 @@ JUMP_HEADER = 'mG_th,'\
     + 'min_mG[full_range],max_mG[full_range],mean_mG[full_range],std_mG[full_range],'\
     + 'min_gyro[full_range],max_gyro[full_range],mean_gyro[full_range],std_gyro[full_range]'\
     + '\n'
-    
+
+
+SENSOR_BOOT_HEADER = 'time [s],alt_lpf [m],sensor_roll,sensor_pitch,sensor_yaw,'\
+    + 'static_reg_roll,static_reg_pitch,static_reg_yaw,'\
+    + 'boot_roll,boot_pitch,boot_yaw'\
+    + '\n'
+
 
 def createDataFile(name, header):
     """Creates a generic data file inside the `logs/` dir.
@@ -55,7 +66,13 @@ def createJumpDataFile(name):
     return createDataFile(name, JUMP_HEADER)
 
 
+def createSensorBootDataFile(name):
+    """Creates a specific logfile for sensor boot frame data."""
+    return createDataFile(name, SENSOR_BOOT_HEADER)
+
+
 def constructJumpLine(jump: Jump):
+    """Constructs the (lengthy) data row based on the jump."""
     line = f'{JUMP_THRESHOLD_MG},'
     line += f'{jump.lowG_range[0]},'
     line += f'{jump.lowG_range[1]},'
@@ -151,3 +168,22 @@ def constructJumpLine(jump: Jump):
     line += '\n'
 
     return line
+
+
+def constructSensorBootLines(tile: Tile):
+    """Creates the sensor boot frame row."""
+    data_dump = ''
+
+    # collect clamped euler data
+    sensor_euler = np.apply_along_axis(quatToEuler, 1, tile.imu.quat)
+    boot_euler = np.apply_along_axis(quatToEuler, 1, tile.boot_quat)
+
+    for i in range(tile.time.shape[0] - 1):
+        sb_euler = quatToEuler(tile.static_registration.getMostRecentRegistration(tile.time[i]))
+
+        data_dump += f'{tile.time[i]},{tile.alt_lpf[i]},'
+        data_dump += f'{sensor_euler[i, 0]},{sensor_euler[i, 1]},{sensor_euler[i, 2]},'
+        data_dump += f'{sb_euler[0]},{sb_euler[1]},{sb_euler[2]},'
+        data_dump += f'{boot_euler[i, 0]},{boot_euler[i, 1]},{boot_euler[i, 2]},'
+        data_dump += '\n'
+    return data_dump

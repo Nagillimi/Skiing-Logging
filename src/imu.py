@@ -67,7 +67,7 @@ class IMU:
     
 
     # https://github.com/xioTechnologies/Fusion/blob/58f9d2e01be0fcda37ebb1af35c7fc09a5dcbeff/Fusion/FusionMath.h#L466
-    def computeEuler(self, cts_yaw=True, print_out=False):
+    def computeEuler(self, cts=True, print_out=False):
         """Gets the euler data from the orientatio quaternion, 
         assuming yaw data in a continuous range otherwise set `cts_yaw` to False.
         """
@@ -76,22 +76,13 @@ class IMU:
         self.euler_combined = np.linalg.norm(euler, axis=1)
         self.euler = makeContinuousRange3dof(
             euler,
-            fix_0=True,
-            fix_1=False,
-            fix_2=cts_yaw,
+            fix_0=cts,
+            fix_1=cts,
+            fix_2=cts,
             print_out=print_out
         )
         if print_out: print('Converted euler data into continuous range.')
 
-
-    def tareOrientation(self, qSB):
-        """Rotates the orientation data by a quaternion [w, x, y, z].
-        
-        `qSB` for converting from "sensor to boot frame".
-        """
-        qSB_i = np.multiply(qSB, [1, -1, -1, -1])
-        return [quatMult(quatMult(qSB, q), qSB_i) for q in self.quat]
-    
 
     @property
     def euler(self) -> np.ndarray:
