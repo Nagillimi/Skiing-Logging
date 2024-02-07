@@ -1,13 +1,3 @@
-*.wav
-*.csv
-*.txt
-*.heic
-*.xls
-*.xlsx
-*.fit
-*.gpx
-*.tcx
-*.DS_Store
-*.zip
+DATA/
 *.pdf
 __pycache__
