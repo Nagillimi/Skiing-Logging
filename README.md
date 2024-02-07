@@ -28,7 +28,7 @@ Visit the individual notebooks for the explorations on identifying these signals
 
 Samsung A50 tracking with the SkiApp Pro, which captures complete tracking sets for all stages of a skiing activity. Includes track recognition and is split into 4 categories; downhill, lift, hold, & walk. Other data captured includes global timestamp (in s), 3d distance, 3d velocity, course/heading, altitude, latitude & longitude, and position accuracy (allegedly 2d from GPS). This device will be used as a ground truth to align the tile data through processed pressure data. This device was placed inside the jacket on the torso and had a sampling of 1Hz.
 
-![ ](pics/a50.jpg, width=400)
+![ ](pics/a50.jpg)
 
 Garmin fenix 6 Pro tracked the activity and represents a more holistic/sport approach towards the track recognition. It only contains recorded data for the downhill portions of the ski activity and therefore won't be used to synchronize the tile data (through pressure/altitude alignment). The tracking itself contains many signals, including all of the A50 data & more. See the parsing notebook for more details. This device was worn on the left wrist and had a sampling of 1Hz.
 
