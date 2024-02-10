@@ -28,9 +28,13 @@ class IMU:
         rate is set to 100Hz, override `fs` otherwise.
         """
         # convert data to G's, dps, & uT
-        a = np.divide(accel, 1000)
-        g = np.divide(gyro, 1000)
-        m = np.divide(mag, 10) if mag is not None else None
+        a = accel / 1000
+        g = gyro / 1000
+        m = mag / 10 if mag is not None else None
+
+        # a = self.convertToBootFrame(accel) / 1000
+        # g = self.convertToBootFrame(gyro) / 1000
+        # m = self.convertToBootFrame(mag) / 10 if mag is not None else None
 
         self.offset = imufusion.Offset(fs)
         self.ahrs = imufusion.Ahrs()
@@ -47,6 +51,10 @@ class IMU:
         self.computeEuler(print_out=print_out)
 
 
+    def convertToBootFrame(self, x: np.ndarray) -> np.ndarray:
+        return np.transpose([x[:, 1], -x[:, 2], -x[:, 0]])
+
+
     def computeOrientation(self, a: np.ndarray, g: np.ndarray, m=None, print_out=False):
         """Compute the orientation quaternion with the motion data.
         
@@ -54,15 +62,17 @@ class IMU:
         """
         N = a.shape[0]
         self.quat = np.empty((N, 4))
+        self.euler = np.empty((N, 3))
         if print_out: print('Computing orientation for', self)
 
         for i in range(N):
-            offset_gyro = self.offset.update(g[i])
+            g[i] = self.offset.update(g[i])
             if m is None:
-                self.ahrs.update_no_magnetometer(offset_gyro, a[i], 1 / self.fs)
+                self.ahrs.update_no_magnetometer(g[i], a[i], 1 / self.fs)
             else:
-                self.ahrs.update(offset_gyro, a[i], m[i], 1 / self.fs)
+                self.ahrs.update(g[i], a[i], m[i], 1 / self.fs)
             q = self.ahrs.quaternion
+            self.euler[i] = q.to_euler()
             self.quat[i] = [q.w, q.x, q.y, q.z]
     
 
@@ -74,13 +84,13 @@ class IMU:
         if print_out: print('Translating orientation into euler data for', self)
         euler = np.apply_along_axis(quatToEuler, 1, self.quat)
         self.euler_combined = np.linalg.norm(euler, axis=1)
-        self.euler = makeContinuousRange3dof(
-            euler,
-            fix_0=cts,
-            fix_1=cts,
-            fix_2=cts,
-            print_out=print_out
-        )
+        # self.euler = makeContinuousRange3dof(
+        #     euler,
+        #     fix_0=cts,
+        #     fix_1=cts,
+        #     fix_2=cts,
+        #     print_out=print_out
+        # )
         if print_out: print('Converted euler data into continuous range.')
 
 

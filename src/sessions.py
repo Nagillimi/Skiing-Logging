@@ -5,7 +5,8 @@ class Session_2022_12_26(Session):
     """Imports all datasets from 2022, 12, 26 at Olympia."""
     def __init__(self,
             offsets=None,
-            print_out=False
+            print_out=False,
+            prototype_sigs=False,
     ) -> None:
         super().__init__(
             tile_file="../DATA/2022_12_26/Mt Olympia/Tile/SENS000.CSV",
@@ -13,13 +14,15 @@ class Session_2022_12_26(Session):
             f6p_file="../DATA/2022_12_26/Mt Olympia/F35/10190939007_ACTIVITY.csv",
             offsets=offsets_2022_12_26() if offsets is None else offsets,
             print_out=print_out,
+            prototype_sigs=prototype_sigs,
         )
 
 class Session_2022_12_27(Session):
     """Imports all datasets from 2022, 12, 27 at Morin Heights."""
     def __init__(self,
             offsets=None,
-            print_out=False
+            print_out=False,
+            prototype_sigs=False,
     ) -> None:
         super().__init__(
             tile_file="../DATA/2022_12_27/Mt Morin Heights/Tile/SENS000.CSV",
@@ -27,13 +30,15 @@ class Session_2022_12_27(Session):
             f6p_file="../DATA/2022_12_27/Mt Morin Heights/F35/10196117595_ACTIVITY.csv",
             offsets=offsets_2022_12_27() if offsets is None else offsets,
             print_out=print_out,
+            prototype_sigs=prototype_sigs,
         )
 
 class Session_2023_12_30(Session):
     """Imports all datasets from 2023, 12, 30 at Olympia."""
     def __init__(self,
             offsets=None,
-            print_out=False
+            print_out=False,
+            prototype_sigs=False,
     ) -> None:
         super().__init__(
             tile_file="../DATA/2023_12_30/Mt Olympia/Tile/SENS000.CSV",
@@ -41,13 +46,15 @@ class Session_2023_12_30(Session):
             f6p_file="../DATA/2023_12_30/Mt Olympia/F6P/13293488821_ACTIVITY.csv",
             offsets=offsets_2023_12_30() if offsets is None else offsets,
             print_out=print_out,
+            prototype_sigs=prototype_sigs,
         )
 
 class Session_2023_12_31(Session):
     """Imports all datasets from 2023, 12, 31 at St. Sauveur."""
     def __init__(self,
             offsets=None,
-            print_out=False
+            print_out=False,
+            prototype_sigs=False,
     ) -> None:
         super().__init__(
             tile_file="../DATA/2023_12_31/Mt St Sauveur/Tile/SENS000.CSV",
@@ -55,13 +62,15 @@ class Session_2023_12_31(Session):
             f6p_file="../DATA/2023_12_31/Mt St Sauveur/F6P/13306856415_ACTIVITY.csv",
             offsets=offsets_2023_12_31() if offsets is None else offsets,
             print_out=print_out,
+            prototype_sigs=prototype_sigs,
         )
 
 class Session_2024_01_01(Session):
     """Imports all datasets from 2024, 1, 1 at Morin Heights."""
     def __init__(self,
             offsets=None,
-            print_out=False
+            print_out=False,
+            prototype_sigs=False,
     ) -> None:
         super().__init__(
             tile_file="../DATA/2024_01_01/Mt Morin Heights/Tile/SENS000.CSV",
@@ -69,4 +78,47 @@ class Session_2024_01_01(Session):
             f6p_file="../DATA/2024_01_01/Mt Morin Heights/F6P/13319383173_ACTIVITY.csv",
             offsets=offsets_2024_01_01() if offsets is None else offsets,
             print_out=print_out,
+            prototype_sigs=prototype_sigs,
+        )
+
+
+class Session_2024_02_08(Session):
+    """Imports tile data for testing orientation axes."""
+    def __init__(self,
+            offsets=None,
+            print_out=False,
+            prototype_sigs=False,
+    ) -> None:
+        super().__init__(
+            tile_file="../DATA/2024_02_08/Tile/SENS000.CSV",
+            print_out=print_out,
+            prototype_sigs=prototype_sigs,
+        )
+
+
+class Session_2024_02_09(Session):
+    """Imports tile data for testing orientation axes."""
+    def __init__(self,
+            offsets=None,
+            print_out=False,
+            prototype_sigs=False,
+    ) -> None:
+        super().__init__(
+            tile_file="../DATA/2024_02_09/Tile-frame/SENS000.CSV",
+            print_out=print_out,
+            prototype_sigs=prototype_sigs,
+        )
+
+
+class Session_2024_02_09_Boot_Frame(Session):
+    """Imports tile data for testing orientation axes, done in the boot frame."""
+    def __init__(self,
+            offsets=None,
+            print_out=False,
+            prototype_sigs=False,
+    ) -> None:
+        super().__init__(
+            tile_file="../DATA/2024_02_09/Boot-frame/SENS000.CSV",
+            print_out=print_out,
+            prototype_sigs=prototype_sigs,
         )

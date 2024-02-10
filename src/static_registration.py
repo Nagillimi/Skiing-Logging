@@ -1,7 +1,7 @@
 import numpy as np
 from imu import IMU
 from registration import Registration
-from quat import avgQuat
+from quat import avgQuat, quatToRotFlatRegistration
 from sig_proc import maxIndex
 
 
@@ -207,7 +207,7 @@ class StaticRegistration:
             Registration(
                 ts=self.time[r[1]],
                 range=r,
-                avg_quat=avgQuat(self.imu.quat[r[0]:r[1], :])
+                avg_quat=avgQuat(self.imu.quat[r[0]:r[1], :]),
             ) for r in self.ranges if r is not None
         ]
         if print_out: print('Identified', len(self.registrations), 'fine static ranges.')
@@ -226,7 +226,13 @@ class StaticRegistration:
         self.assignRegistrationsFromRanges(print_out=print_out)
 
 
-    def getMostRecentRegistration(self, timestamp) -> np.ndarray:
+    def getMostRecentRegistration(self, timestamp) -> Registration:
+        """Gets the most recent registration from `self.registrations` based on `timestamp`."""
+        regs_below = [reg.ts < timestamp for reg in self.registrations]
+        return self.registrations[sum(regs_below) - 1]
+
+
+    def getMostRecentRegistrationQuat(self, timestamp) -> np.ndarray:
         """Gets the most recent registration from `self.registrations` based on `timestamp`.
         
         If any static registration has a associated timestamp lower than the current `timestamp`,
@@ -235,11 +241,23 @@ class StaticRegistration:
         If no static registration exists belong the current `timestamp`, it returns a zero
         rotation.
         """
-        if timestamp < self.registrations[0].ts:
+        if len(self.registrations) == 0 or timestamp < self.registrations[0].ts:
             return np.array([1, 0, 0, 0])
+        return self.getMostRecentRegistration(timestamp).avg_quat
+
+
+    def getMostRecentRegistrationRotM(self, timestamp) -> np.ndarray:
+        """Gets the most recent registration from `self.registrations` based on `timestamp`.
         
-        regs_below = [reg.ts < timestamp for reg in self.registrations]
-        return self.registrations[sum(regs_below) - 1].avg_quat
+        If any static registration has a associated timestamp lower than the current `timestamp`,
+        the registration with the highest timestamp underneath it will be returned.
+
+        If no static registration exists belong the current `timestamp`, it returns a zero
+        rotation.
+        """
+        if len(self.registrations) == 0 or timestamp < self.registrations[0].ts:
+            return np.eye(3, 3)
+        return self.getMostRecentRegistration(timestamp).rp_rotM
 
 
     @property

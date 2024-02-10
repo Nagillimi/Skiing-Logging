@@ -8,23 +8,27 @@ class Session:
     def __init__(
             self,
             tile_file,
-            a50_file,
-            f6p_file,
+            a50_file=None,
+            f6p_file=None,
             offsets=None,
             print_out=False,
             compute_kinematics=True,
+            prototype_sigs=False,
     ) -> None:
         # init the device objects
         self.raw_tile = decodeTile(tile_file, print_out, "Raw Tile")
-        self.a50 = decodeA50(a50_file, print_out, "A50")
-        self.f6p = decodeF6P(f6p_file, print_out, "F6P")
-
         self.tile = Tile(self.raw_tile, print_out=print_out)
-        if offsets is None:
-            self.tile.identifyOffsets(self.a50, print_out=print_out)
-        else:
-            self.tile.applyOffsets(offsets[0], offsets[1])
-            self.tile.applyTimestamp(self.a50[0].time[0])
+
+        if a50_file is not None:
+            self.a50 = decodeA50(a50_file, print_out, "A50")
+            if offsets is None:
+                self.tile.identifyOffsets(self.a50, print_out=print_out)
+            else:
+                self.tile.applyOffsets(offsets[0], offsets[1])
+                self.tile.applyTimestamp(self.a50[0].time[0])
+
+        if f6p_file is not None:
+            self.f6p = decodeF6P(f6p_file, print_out, "F6P")
 
         if not compute_kinematics:
             return 
@@ -32,11 +36,11 @@ class Session:
         # these will be called internal to Tile, but for now
         self.tile.computeJumps(print_out=print_out)
         self.tile.computeStaticRegistrations(print_out=print_out)
-        self.tile.computeBootOrientations(print_out=print_out)
+        self.tile.computeBootOrientations(prototype_sigs=prototype_sigs, print_out=print_out)
         # self.tile.computeTurns(print_out=print_out)
 
-        self.logJumpData()
-        self.logSensorBootData()
+        # self.logJumpData()
+        # self.logSensorBootData()
 
 
     def logJumpData(self):

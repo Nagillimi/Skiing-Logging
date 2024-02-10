@@ -1,3 +1,6 @@
 DATA/
 *.pdf
 __pycache__
+._*
+*.xlsx
+*.csv

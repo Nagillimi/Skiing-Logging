@@ -1,4 +1,6 @@
+import numpy as np
 from jump import JUMP_THRESHOLD_MG
+from quat import eulerToQuat, quatRot, quatToEuler
 from track import Track
 from tile import Tile
 import matplotlib.pyplot as plt
@@ -85,7 +87,7 @@ def plotAltMag(track: Tile, r=[0, -1]):
     )
 
 
-def plotTileRuns(runs: [Tile]):
+def plotTileRuns(runs: list[Tile]):
     plt.rc('lines', linewidth=1)
     fig, ax = plt.subplots()
     for i in range(len(runs)): ax.plot(runs[i].time, runs[i].alt_lpf, label=['Tile Run', i])
@@ -155,7 +157,7 @@ def plotTileWithStillZones(tile: Tile, r=[0, -1]):
     euler = tile.imu.euler[r[0]:r[1], :]
 
     plt.rc('lines', linewidth=1)
-    fig, ax = plt.subplots(6, figsize=(15, 10))
+    fig, ax = plt.subplots(5, figsize=(10, 6))
 
     ax[0].plot(t, tile.alt_lpf[r[0]:r[1]])
     addStillZones(ax[0], tile.time, fine_rs, r)
@@ -180,15 +182,10 @@ def plotTileWithStillZones(tile: Tile, r=[0, -1]):
     ax[3].set_title('All Tile Yaw with Still Zones', wrap=True)
     ax[3].legend()
 
-    ax[4].plot(t, tile.mG_lpf[r[0]:r[1]])
+    ax[4].plot(t, tile.mG[r[0]:r[1]])
     addStillZones(ax[4], tile.time, fine_rs, r)
     if coarse_rs is not None: addStillZones(ax[4], tile.time, coarse_rs, r, 'red')
-    ax[4].set_title('All Tile Filtered mG-forces with Still Zones', wrap=True)
-
-    ax[5].plot(t, tile.mG[r[0]:r[1]])
-    addStillZones(ax[5], tile.time, fine_rs, r)
-    if coarse_rs is not None: addStillZones(ax[5], tile.time, coarse_rs, r, 'red')
-    ax[5].set_title('All Tile Unfiltered mG-forces with Still Zones', wrap=True)
+    ax[4].set_title('All Tile Unfiltered mG-forces with Still Zones', wrap=True)
 
     plt.tight_layout()
     plt.show()
@@ -201,3 +198,87 @@ def plotAllTileRegistationZones(tile: Tile, r=[0, -1]):
     _ = plotTileWithStillZones(tile, r=r)
     brackets = [[r[0]-3000, r[1]+3000] for r in coarse_rs]
     _ = [plotTileWithStillZones(tile, r=bracket) for bracket in brackets]
+
+
+def plotEulerAnalysis(tile: Tile, r=[0, -1]):
+    def addStillZones(ax, t, ranges, r, _color='green'):
+        for range in ranges:
+            if tile.time[range[0]] < tile.time[r[0]] or tile.time[range[1]] > tile.time[r[1]]: 
+                continue
+            ax.axvspan(t[range[0]], t[range[1]], color=_color, alpha=0.25)
+
+    def addHorizontalLines(ax):
+        ax.axhline(y=0, color='k', linestyle='--')
+        ax.axhline(y=90, color='k', linestyle='--')
+        ax.axhline(y=180, color='k', linestyle='--')
+        ax.axhline(y=-90, color='k', linestyle='--')
+        ax.axhline(y=-180, color='k', linestyle='--')
+
+    fine_rs = [r for r in tile.static_registration.ranges if r is not None]
+    coarse_rs = tile.static_registration.coarse_ranges
+    t = tile.time[r[0]:r[1]]
+
+
+    boot_quat = tile.boot_quat[r[0]:r[1], :]
+    boot_quat_euler = np.apply_along_axis(quatToEuler, 1, boot_quat)
+    # boot_quat_euler = makeContinuousRange3dof(boot_quat_euler, fix_0=True, fix_1=True, fix_2=True)
+
+    sensor_quat = tile.imu.quat[r[0]:r[1], :]
+    sensor_euler = np.apply_along_axis(quatToEuler, 1, sensor_quat)
+    # sensor_euler = makeContinuousRange3dof(sensor_euler, fix_0=True, fix_1=True, fix_2=True)
+
+    boot_rotated_euler = tile.boot_rotated_euler[r[0]:r[1], :]
+    # boot_rotated_euler = makeContinuousRange3dof(boot_rotated_euler, fix_0=True, fix_1=True, fix_2=True)
+
+    boot_rotM_euler = tile.boot_rotM_euler[r[0]:r[1], :]
+    # boot_rotM_euler = makeContinuousRange3dof(boot_rotM_euler, fix_0=True, fix_1=True, fix_2=True)
+
+
+    plt.rc('lines', linewidth=1)
+    fig, ax = plt.subplots(4, figsize=(15, 10))
+
+    ax[0].plot(t, tile.alt_lpf[r[0]:r[1]])
+    addStillZones(ax[0], tile.time, fine_rs, r)
+    addStillZones(ax[0], tile.time, coarse_rs, r, 'red')
+    ax[0].set_title('All Tile Altitude with Still Zones', wrap=True)
+
+    ax[1].plot(t, sensor_euler[:, 0], label='sensor')
+    ax[1].plot(t, boot_quat_euler[:, 0], label='boot_quat_euler')
+    ax[1].plot(t, boot_rotated_euler[:, 0], label='boot_rotated_euler')
+    ax[1].plot(t, boot_rotM_euler[:, 0], label='boot_rotM_euler')
+    addStillZones(ax[1], tile.time, fine_rs, r)
+    addStillZones(ax[1], tile.time, coarse_rs, r, 'red')
+    addHorizontalLines(ax[1])
+    ax[1].set_title('All Tile Roll with Still Zones', wrap=True)
+    ax[1].legend()
+
+    ax[2].plot(t, sensor_euler[:, 1], label='sensor')
+    ax[2].plot(t, boot_quat_euler[:, 1], label='boot_quat_euler')
+    ax[2].plot(t, boot_rotated_euler[:, 1], label='boot_rotated_euler')
+    ax[2].plot(t, boot_rotM_euler[:, 1], label='boot_rotM_euler')
+    addStillZones(ax[2], tile.time, fine_rs, r)
+    addStillZones(ax[2], tile.time, coarse_rs, r, 'red')
+    addHorizontalLines(ax[2])
+    ax[2].set_title('All Tile Pitch with Still Zones', wrap=True)
+    ax[2].legend()
+
+    ax[3].plot(t, sensor_euler[:, 2], label='sensor')
+    ax[3].plot(t, boot_quat_euler[:, 2], label='boot_quat_euler')
+    ax[3].plot(t, boot_rotated_euler[:, 2], label='boot_rotated_euler')
+    ax[3].plot(t, boot_rotM_euler[:, 2], label='boot_rotM_euler')
+    addStillZones(ax[3], tile.time, fine_rs, r)
+    addStillZones(ax[3], tile.time, coarse_rs, r, 'red')
+    addHorizontalLines(ax[3])
+    ax[3].set_title('All Tile Yaw with Still Zones', wrap=True)
+    ax[3].legend()
+
+    plt.tight_layout()
+    plt.show()
+    return fig
+
+
+def plotAllTileEulerAnalyses(tile: Tile, r=[0, -1]):
+    _ = plotEulerAnalysis(tile, r=r)
+    brackets = [[r[1]+4000, r[1]+10000] for r in tile.static_registration.ranges]
+    if len(brackets) > 0:
+        _ = [plotEulerAnalysis(tile, r=bracket) for bracket in brackets]

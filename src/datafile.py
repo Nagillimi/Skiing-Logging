@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 from jump import JUMP_THRESHOLD_MG, Jump
-from quat import quatToEuler
+from quat import quatToEuler, transformEuler, transformEulerAsXYZ
 from sig_proc import mean, std
 from sig_proc_np import makeContinuousRange3dof
 from tile import Tile
@@ -37,7 +37,9 @@ JUMP_HEADER = 'mG_th,'\
 
 SENSOR_BOOT_HEADER = 'time [s],alt_lpf [m],sensor_roll,sensor_pitch,sensor_yaw,'\
     + 'static_reg_roll,static_reg_pitch,static_reg_yaw,'\
-    + 'boot_roll,boot_pitch,boot_yaw'\
+    + 'boot_quat_roll,boot_quat_pitch,boot_quat_yaw,'\
+    + 'boot_euler_roll,boot_euler_pitch,boot_euler_yaw,'\
+    + 'boot_rotM_roll,boot_rotM_pitch,boot_rotM_yaw,'\
     + '\n'
 
 
@@ -178,12 +180,21 @@ def constructSensorBootLines(tile: Tile):
     sensor_euler = np.apply_along_axis(quatToEuler, 1, tile.imu.quat)
     boot_euler = np.apply_along_axis(quatToEuler, 1, tile.boot_quat)
 
+    past_qSB = np.zeros((1, 4))
     for i in range(tile.time.shape[0] - 1):
-        sb_euler = quatToEuler(tile.static_registration.getMostRecentRegistration(tile.time[i]))
+        qSB = tile.static_registration.getMostRecentRegistrationQuat(tile.time[i])
+        sb_euler = quatToEuler(qSB)
+        boot_direct_euler = transformEuler(sensor_euler[i], qSB)
+        # boot_direct_xyz = transformEulerAsXYZ(sensor_euler[i], qSB)
 
+        if np.sum(np.equal(past_qSB, qSB)) != 4: data_dump += '\n'
         data_dump += f'{tile.time[i]},{tile.alt_lpf[i]},'
         data_dump += f'{sensor_euler[i, 0]},{sensor_euler[i, 1]},{sensor_euler[i, 2]},'
         data_dump += f'{sb_euler[0]},{sb_euler[1]},{sb_euler[2]},'
         data_dump += f'{boot_euler[i, 0]},{boot_euler[i, 1]},{boot_euler[i, 2]},'
+        data_dump += f'{boot_direct_euler[0]},{boot_direct_euler[1]},{boot_direct_euler[2]},'
+        data_dump += f'{tile.boot_rotM_euler[i, 0]},{tile.boot_rotM_euler[i, 1]},{tile.boot_rotM_euler[i, 2]},'
         data_dump += '\n'
+
+        past_qSB = qSB
     return data_dump

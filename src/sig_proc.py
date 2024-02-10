@@ -1,6 +1,5 @@
 import math
 from scipy import signal
-import numpy as np
 
 
 def arma(x: list, m=5):

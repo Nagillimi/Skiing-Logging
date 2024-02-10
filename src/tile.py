@@ -1,5 +1,5 @@
 from jump import JUMP_THRESHOLD_MG, Jump
-from quat import quatMult, quatRot
+from quat import eulerToQuat, quatMult, quatRot, quatToEuler, transformEuler, transformEulerAsXYZ
 from raw_tile import RawTile
 from static_registration import StaticRegistration
 from imu import IMU
@@ -12,18 +12,17 @@ class Tile:
     def __init__(
             self,
             raw: RawTile,
-            prefer_9dof=True,
+            prefer_9dof=False,
             print_out=False,
     ):
-        self.time = raw.time
+        self.time = raw.time / 1000
         self.constructProcessedSignals(raw, prefer_9dof, print_out)
 
 
     def __printProps__(self, prefix="\t"):
-        in_s = self.time[1] - self.time[0] <= 0.01
         print(
             prefix,
-            "Duration [s]", round((self.time[-1] - self.time[0]) / (1 if in_s else 1000))
+            "Duration [s]", round(self.time[-1] - self.time[0])
         )
 
 
@@ -33,15 +32,17 @@ class Tile:
         self.raw_alt_lpf = lowpass(self.raw_alt, 1/100, 'butter2')
         self.gyro_v = length(raw.gyro)
         self.mG = length(raw.accel)
-
         self.accel_lpf = lowpass(raw.accel, 3/100, 'butter2')
         self.mG_lpf = length(self.accel_lpf)
-
         self.imu = IMU(raw.accel, raw.gyro, raw.mag if prefer_9dof else None, print_out=print_out)
+        
+        # placeholder until the offsets are set from ground truth
+        self.alt = self.raw_alt
+        self.alt_lpf = self.raw_alt_lpf
 
 
     def identifyOffsets(self, 
-        truth: [Track],
+        truth: list[Track],
         use_lpf=True,
         print_out=False,
     ):
@@ -65,7 +66,7 @@ class Tile:
         It's called internally from sync, don't call directly unless you have the timestamp on hand!
         -
         """
-        self.time += ts_global - (self.time[0] / 1000)
+        self.time += ts_global - self.time[0]
 
 
     def applyOffsets(self, ts_offset, alt_offset):
@@ -74,7 +75,7 @@ class Tile:
         It's called internally from sync, don't call directly unless you have the offsets on hand!
         -
         """
-        self.time = (self.time / 1000) - (ts_offset / 100)
+        self.time = self.time - (ts_offset / 100)
         self.alt = self.raw_alt - alt_offset
         self.alt_lpf = self.raw_alt_lpf - alt_offset
 
@@ -100,22 +101,32 @@ class Tile:
         self.static_registration = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu, print_out)
 
 
-    def computeBootOrientations(self, print_out=False):
+    def computeBootOrientations(self, prototype_sigs=False, print_out=False):
         """Based on the identified static registrations, sensor orientations are transformed into the boot frame.
         
         Since registrations update and contain an associated timestamp, the boot orientations will update whenever
         this happens. Ideally, static registrations would occur at the top of every lift and correct orientations
         on that frequency- otherwise this method will use the most recent registration available for sensor to boot
         orientation transformations.
-        """
-        # for orientation imu quat, test the ts
-        # using the ts, get the latest qSB from static reg's (returns zero rot if it doesn't exist yet)
-        # apply the qSB to the imu quat and assign to boot_rot
+        """        
         self.boot_quat = np.ones_like(self.imu.quat)
-        for i in range(self.imu.quat.shape[0]):
-            qSB = self.static_registration.getMostRecentRegistration(self.time[i])
-            self.boot_quat[i] = quatRot(self.imu.quat[i], qSB, inverse=False)
+        
+        if prototype_sigs:
+            q_rot = eulerToQuat(np.array([0, 180, -90]))
+            q_roll90 = np.array([np.sqrt(2) / 2, -np.sqrt(2) / 2, 0, 0])
+            sensor_euler = np.apply_along_axis(quatToEuler, 1, self.imu.quat)
+            self.boot_rotated_euler = np.zeros_like(self.imu.euler)
+            self.boot_rotM_euler = np.zeros_like(self.imu.euler)
 
+        for i in range(self.imu.quat.shape[0] - 1):
+            qSB = self.static_registration.getMostRecentRegistrationQuat(self.time[i])
+            self.boot_quat[i] = quatRot(self.imu.quat[i], qSB, inverse=True)
+            
+            if prototype_sigs:
+                self.boot_rotated_euler[i] = quatToEuler(quatMult(quatRot(self.imu.quat[i], q_rot, True), q_roll90))
+                # self.boot_rotated_euler[i] = quatToEuler(quatRot(self.imu.quat[i], q_rot, True))
+                rotM = self.static_registration.getMostRecentRegistrationRotM(self.time[i])
+                self.boot_rotM_euler[i] = np.matmul(rotM, sensor_euler[i])
 
         if print_out:
             print('Transformed sensor orientation into boot frame using the list of static registrations.')
@@ -221,7 +232,7 @@ class Tile:
     
 
     @property
-    def jumps(self) -> [Jump]:
+    def jumps(self) -> list[Jump]:
         """Jumps identified from kinematic analysis, includes analytics inside the internal `Jump` objects."""
         return self.__jumps
     
