@@ -92,7 +92,7 @@ See specific notebooks for more information and design process.
 
 Since the Tile device wasn't timestamped globally, it required synchronization with the ground truths to properly align the time series signals. The altitude signals proved the best choice between the two, to generate an offset for the first timestamp. At the same time, to future proof I decided to export an altitude offset as well, since this is included in the A50 (GPS) and F6P (barometric) signals to account for weather and other relatively constant pressure effects.
 
-<img src="pics/data-sync.jpg" alt="data-sync" width="700"/>
+<img src="pics/data-sync.png" alt="data-sync" width="700"/>
 
 The sync was a basic search of best fit in 2D using the altitude data. The lowest MAE/MSE between the entire session selected the optimal offsets. This took a while, but only needed to be run once since the architeture allowed for either:
 
@@ -103,7 +103,7 @@ The sync was a basic search of best fit in 2D using the altitude data. The lowes
 
 G-force and gyroscopic signals proved to be decent for jump identification, given a low G threshold and some statistical tests for confirmation.
 
-<img src="pics/jump-th.jpg" alt="jump-th" width="700"/>
+<img src="pics/jump-th.png" alt="jump-th" width="1200"/>
 
 Listing these tests:
 
@@ -129,7 +129,7 @@ return np.array([
 
 Singling out a single jump into the air time and landing phases used in those statistical tests:
 
-<img src="pics/jump.jpg" alt="jump" width="450"/>
+<img src="pics/jump.png" alt="jump" width="450"/>
 
 In the future, these statistical tests could be assigned a weight parameter to better predict a jump. Developing these weight parameters would be done through labelled data in a neural net and is yet to be implemented. However, the application currently publishes all jumps with as many statistical features as possible into a datafile for future analysis.
 
@@ -141,8 +141,8 @@ Identifying liftpeaks polled a large circular buffer for the altitude signals an
 
 The exact point for capturing an average orientation was the moment the ski landed on the liftpeak platform (when the chair is still pushing you as you slide before you get off). This is a pretty flat surface, plus you're held in place for at least a few seconds- enough for a stillness detection. A search algorithm was designed to search for stillness based on std of orientation and G-force signals.
 
-<img src="pics/still-zones.jpg" alt="still-zones" width="700"/>
+<img src="pics/still-zones.png" alt="still-zones" width="700"/>
 
 Using this registration allowed the rotation of the sensor frame into the boot frame. Since the important signals here are the 2D tilt angles, for carving and compression angles, heading wasn't corrected for since it'll be relative to a baseline later anyways. This allows for arbitrary placement of the sensor on the boot/calf as long as the FE planes match (for now) since rotation about the boot's x axis will always be consodered roll/carving angle.
 
-<img src="pics/sensor-boot.jpg" alt="sensor-boot" width="700"/>
+<img src="pics/sensor-boot.png" alt="sensor-boot" width="700"/>
