@@ -1,7 +1,8 @@
 import numpy as np
-from imu import IMU
 from domain.registration import Registration
-from utilities.quat import avgQuat, quatToRotFlatRegistration
+from models.imu import IMU
+from utilities.frames import convertToBootFrame
+from utilities.quat import avgQuat, eulerToQuat, inverseQuat, quatToEuler
 from utilities.sig_proc import maxIndex
 
 
@@ -237,25 +238,18 @@ class StaticRegistration:
 
         If no static registration exists belong the current `timestamp`, it returns a zero
         rotation.
+
+        By default in boot frame, override `boot_frame` to `False` otherwise. Only registers the 
+        2D/horizontal registration.
         """
         if len(self.registrations) == 0 or timestamp < self.registrations[0].ts:
             return np.array([1, 0, 0, 0])
-        return self.getMostRecentRegistration(timestamp).avg_quat
-
-
-    def getMostRecentRegistrationRotM(self, timestamp) -> np.ndarray:
-        """Gets the most recent registration from `self.registrations` based on `timestamp`.
         
-        If any static registration has a associated timestamp lower than the current `timestamp`,
-        the registration with the highest timestamp underneath it will be returned.
-
-        If no static registration exists belong the current `timestamp`, it returns a zero
-        rotation.
-        """
-        if len(self.registrations) == 0 or timestamp < self.registrations[0].ts:
-            return np.eye(3, 3)
-        return self.getMostRecentRegistration(timestamp).rp_rotM
-
+        # convert to boot frame and extract only the horizontal portion of the registrations
+        q_offset_b = convertToBootFrame(self.getMostRecentRegistration(timestamp).avg_quat)
+        euler_offset_b = quatToEuler(q_offset_b)
+        return inverseQuat(eulerToQuat(np.array([euler_offset_b[0], euler_offset_b[1], 0])))
+            
 
     @property
     def coarse_ranges(self) -> list[list]:

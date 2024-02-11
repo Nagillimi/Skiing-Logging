@@ -5,8 +5,9 @@ from domain.sync import identifyOffsets
 from domain.track import Track
 from models.static_registration import StaticRegistration
 from models.imu import IMU
+from utilities.frames import convertToBootFrame
 from utilities.sig_proc_np import identifyRangesBelowTH, length, lowpass, lowpass
-from utilities.quat import eulerToQuat, inverseQuat, quatMult, quatRot, quatToEuler, transformEuler, transformEulerAsXYZ
+from utilities.quat import quatMult
 
 class Tile:
     def __init__(
@@ -101,41 +102,21 @@ class Tile:
         self.static_registration = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu, print_out)
 
 
-    def computeBootOrientations(self, prototype_sigs=False, print_out=False):
+    def computeBootOrientations(self, print_out=False):
         """Based on the identified static registrations, sensor orientations are transformed into the boot frame.
         
         Since registrations update and contain an associated timestamp, the boot orientations will update whenever
         this happens. Ideally, static registrations would occur at the top of every lift and correct orientations
         on that frequency- otherwise this method will use the most recent registration available for sensor to boot
         orientation transformations.
-        """        
-        self.boot_quat = np.ones_like(self.imu.quat)
-        
-        if prototype_sigs:
-            q_rot = eulerToQuat(np.array([0, 180, -90]))
-            # q_roll90 = np.array([1, 0, 0, 0])
-            q_roll90 = np.array([np.sqrt(2) / 2, -np.sqrt(2) / 2, 0, 0])
-            self.q_offset_bf = [np.array([1, 0, 0, 0])]
-            sensor_euler = np.apply_along_axis(quatToEuler, 1, self.imu.quat)
-            self.boot_rotated_euler = np.zeros_like(self.imu.euler)
-            self.boot_rotM_euler = np.zeros_like(self.imu.euler)
+        """
+        self.boot_quat = np.apply_along_axis(convertToBootFrame, 1, self.imu.quat)
 
-        for i in range(self.imu.quat.shape[0] - 1):
-            q_offset = self.static_registration.getMostRecentRegistrationQuat(self.time[i])
-            self.boot_quat[i] = quatRot(self.imu.quat[i], q_offset, inverse=True)
-            
-            if prototype_sigs:
-                # only extracting the horizontal portion of the registrations
-                new_euler_offset_bf = quatToEuler(quatRot(q_offset, q_rot, True))
-                new_q_offset_bf = inverseQuat(eulerToQuat(np.array([new_euler_offset_bf[0], new_euler_offset_bf[1], 0])))
-
-                if not np.array_equal(new_q_offset_bf, self.q_offset_bf[-1]):
-                    self.q_offset_bf.append(new_q_offset_bf)
-
-                self.boot_rotated_euler[i] = quatToEuler(quatMult(quatRot(self.imu.quat[i], q_rot, True), self.q_offset_bf[-1]))
-                # self.boot_rotated_euler[i] = quatToEuler(quatRot(self.imu.quat[i], q_rot, True))
-                rotM = self.static_registration.getMostRecentRegistrationRotM(self.time[i])
-                self.boot_rotM_euler[i] = np.matmul(rotM, sensor_euler[i])
+        for i in range(self.boot_quat.shape[0] - 1):
+            self.boot_quat[i] = quatMult(
+                self.boot_quat[i], 
+                self.static_registration.getMostRecentRegistrationQuat(self.time[i])
+            )
 
         if print_out:
             print('Transformed sensor orientation into boot frame using the list of static registrations.')

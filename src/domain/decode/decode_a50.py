@@ -1,7 +1,7 @@
+import datetime as dt
 import pandas as pd
 from utilities.decorators import printTracks
 from domain.track import Track
-import datetime as dt
 
 
 @printTracks
@@ -18,7 +18,7 @@ def decodeA50(file, print_out, header=''):
         fulltime = properties.split("@ ")[1].split(', Duration=')[0].replace('p.', 'P').replace('m.', 'M').replace('a.', 'A')
         durlength = properties.split("@ ")[1].split(', Duration=')[1]
         # https://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior
-        _datetime = dt.strptime(fulltime, '%b. %d, %Y, %I:%M:%S %p')
+        _datetime = dt.datetime.strptime(fulltime, '%b. %d, %Y, %I:%M:%S %p')
         date = _datetime.date()
         tod = _datetime.time()
         duration = int(durlength.split("'")[0]) * 60 + int(durlength.split("'")[1])

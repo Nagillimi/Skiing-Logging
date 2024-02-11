@@ -6,11 +6,10 @@ def arma(x: list, m=5):
     """Autoregressive Moving-Average digital IIR filter, can be used LP, HP, and BP.
     
     https://en.wikibooks.org/wiki/Signal_Processing/Digital_Filters#ARMA_Filters
+
+    Currently not implemented!
     """
-
-
-def butter(x: list, m=2):
-    """"""
+    pass
 
 
 def diff(x1: list, x2: list):

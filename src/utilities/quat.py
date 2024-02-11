@@ -40,34 +40,34 @@ def createMisalignmentMatrix(alpha = 0, beta = 0, gamma = 0):
     ])
 
 
+def eulerToQuat(rpy: np.ndarray) -> np.ndarray:
+    """Convert Euler data into an orientation quaternion. Follows a cardan ZYX sequence.
+
+    https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Euler_angles_(in_3-2-1_sequence)_to_quaternion_conversion
+    """
+    halfR = np.deg2rad(rpy[0]) * 0.5
+    halfP = np.deg2rad(rpy[1]) * 0.5
+    halfY = np.deg2rad(rpy[2]) * 0.5
+    cr = math.cos(halfR); cp = math.cos(halfP); cy = math.cos(halfY)
+    sr = math.sin(halfR); sp = math.sin(halfP); sy = math.sin(halfY)
+
+    return np.array([
+        cr * cp * cy + sr * sp * sy,
+        sr * cp * cy - cr * sp * sy,
+        cr * sp * cy + sr * cp * sy,
+        cr * cp * sy - sr * sp * cy,
+    ])
+
+
 def inverseQuat(q: np.ndarray) -> np.ndarray:
     return np.multiply(q, [1, -1, -1, -1])
 
 
-def quatToRotFlatRegistration(q: np.ndarray) -> np.ndarray:
-    """Transforms a quaternion into a rotation matrix based on the kinematic constraint of flat-level surface.
-    
-    Assumes a [-pi/2, 0, 0] vector direction, allowing for the calcs of roll & pitch components in rotM.
-    """
-    euler = quatToEuler(q)
-    x_rotation = np.deg2rad(euler[0])
-    sensor_gamma = np.deg2rad(euler[1]) / x_rotation
-    sensor_beta = -np.deg2rad(euler[2]) / x_rotation
-    
-    # due to coordinate frame rotation, hardcode the euler data transformation
-    # xb = xs
-    # yb = zs
-    # zb = -ys
-    # TODO there a way to automate/detect this?
-    boot_gamma = -sensor_beta
-    boot_beta = sensor_gamma
-
-    # return createMisalignmentMatrix(0, sensor_beta, sensor_gamma)
-    return createMisalignmentMatrix(0, boot_beta, boot_gamma)
-
-
 def quatToEuler(q: np.ndarray):
-    """Converts an orientation quaternion into euler angles, in degrees."""
+    """Converts an orientation quaternion into euler angles, in degrees.
+    
+    Employs the atan2 method straight from wiki, following a cardan ZYX sequence.
+    """
     q = q / np.linalg.norm(q)
     qw = q[0]; qx = q[1]; qy = q[2]; qz = q[3]
     
@@ -102,27 +102,13 @@ def quatToEuler(q: np.ndarray):
     return np.array([roll, pitch, yaw])
 
 
-def eulerToQuat(rpy: np.ndarray) -> np.ndarray:
-    """Convert Euler data into an orientation quaternion. Follows a ZYX sequence.
-
-    https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#Euler_angles_(in_3-2-1_sequence)_to_quaternion_conversion
-    """
-    halfR = np.deg2rad(rpy[0]) * 0.5
-    halfP = np.deg2rad(rpy[1]) * 0.5
-    halfY = np.deg2rad(rpy[2]) * 0.5
-    cr = math.cos(halfR); cp = math.cos(halfP); cy = math.cos(halfY)
-    sr = math.sin(halfR); sp = math.sin(halfP); sy = math.sin(halfY)
-
-    return np.array([
-        cr * cp * cy + sr * sp * sy,
-        sr * cp * cy - cr * sp * sy,
-        cr * sp * cy + sr * cp * sy,
-        cr * cp * sy - sr * sp * cy,
-    ])
-
-
 def quatMult(qa: np.ndarray, qb: np.ndarray) -> np.ndarray:
-    """Multiplies 2 quaternions via the hamilton product."""
+    """Multiplies 2 quaternions via the hamilton product. Directly mutliplying a quaternion
+    without the matching inverse performs a vector rotation.
+    
+    For quaternion rotations with the
+    inverse, use `quatRot()`.
+    """
     qa_w = qa[0]; qa_x = qa[1]; qa_y = qa[2]; qa_z = qa[3]
     qb_w = qb[0]; qb_x = qb[1]; qb_y = qb[2]; qb_z = qb[3]
 
@@ -135,7 +121,7 @@ def quatMult(qa: np.ndarray, qb: np.ndarray) -> np.ndarray:
 
 
 def quatRot(q_input: np.ndarray, q_rot: np.ndarray, inverse=False) -> np.ndarray:
-    r"""Applies a rotation on quaterion `q_input` by `q_rot`.
+    r"""Applies a rotation on quaterion `q_input` by `q_rot`. Useful for converting a CS reference.
     
     Follows the convention:
     .. math::
@@ -150,22 +136,3 @@ def quatRot(q_input: np.ndarray, q_rot: np.ndarray, inverse=False) -> np.ndarray
         if inverse is False else
         quatMult(quatMult(q_rot_i, q_input), q_rot)
     )
-
-
-def transformEuler(rpy: np.ndarray, q_rot: np.ndarray) -> np.ndarray:
-    q_rpy = np.array([0, rpy[0], rpy[1], rpy[2]])
-    q_result = quatRot(q_rpy, q_rot, inverse=True)
-    return q_result[1:]
-
-
-def transformEulerAsXYZ(rpy: np.ndarray, q_rot: np.ndarray) -> np.ndarray:
-    rpy = np.deg2rad(rpy)
-    x = np.cos(rpy[1] * rpy[2])
-    y = np.sin(rpy[0])
-    z = np.sin(rpy[1])
-    q_xyz = np.array([0, x, y, z])
-    q_xyz_i = quatRot(q_xyz, q_rot, inverse=True)
-    r = np.arcsin(q_xyz_i[2])
-    p = np.arcsin(q_xyz_i[3])
-    y = np.arccos(q_xyz_i[1] / np.cos(p))
-    return np.rad2deg([r, p, y])

@@ -2,9 +2,8 @@ import os
 import numpy as np
 from domain.jump import JUMP_THRESHOLD_MG, Jump
 from domain.tile import Tile
-from utilities.quat import quatToEuler, transformEuler, transformEulerAsXYZ
+from utilities.quat import quatToEuler
 from utilities.sig_proc import mean, std
-from utilities.sig_proc_np import makeContinuousRange3dof
 
 
 JUMP_HEADER = 'mG_th,'\
@@ -36,10 +35,8 @@ JUMP_HEADER = 'mG_th,'\
 
 
 SENSOR_BOOT_HEADER = 'time [s],alt_lpf [m],sensor_roll,sensor_pitch,sensor_yaw,'\
-    + 'static_reg_roll,static_reg_pitch,static_reg_yaw,'\
-    + 'boot_quat_roll,boot_quat_pitch,boot_quat_yaw,'\
-    + 'boot_euler_roll,boot_euler_pitch,boot_euler_yaw,'\
-    + 'boot_rotM_roll,boot_rotM_pitch,boot_rotM_yaw,'\
+    + 'offset_roll,offset_pitch,offset_yaw,'\
+    + 'boot_roll,boot_pitch,boot_yaw,'\
     + '\n'
 
 
@@ -180,21 +177,13 @@ def constructSensorBootLines(tile: Tile):
     sensor_euler = np.apply_along_axis(quatToEuler, 1, tile.imu.quat)
     boot_euler = np.apply_along_axis(quatToEuler, 1, tile.boot_quat)
 
-    past_q_offset = np.zeros((1, 4))
     for i in range(tile.time.shape[0] - 1):
         q_offset = tile.static_registration.getMostRecentRegistrationQuat(tile.time[i])
-        sb_euler = quatToEuler(q_offset)
-        boot_direct_euler = transformEuler(sensor_euler[i], q_offset)
-        # boot_direct_xyz = transformEulerAsXYZ(sensor_euler[i], q_offset)
-
-        if np.sum(np.equal(past_q_offset, q_offset)) != 4: data_dump += '\n'
+        offset_euler = quatToEuler(q_offset)
+        
         data_dump += f'{tile.time[i]},{tile.alt_lpf[i]},'
         data_dump += f'{sensor_euler[i, 0]},{sensor_euler[i, 1]},{sensor_euler[i, 2]},'
-        data_dump += f'{sb_euler[0]},{sb_euler[1]},{sb_euler[2]},'
+        data_dump += f'{offset_euler[0]},{offset_euler[1]},{offset_euler[2]},'
         data_dump += f'{boot_euler[i, 0]},{boot_euler[i, 1]},{boot_euler[i, 2]},'
-        data_dump += f'{boot_direct_euler[0]},{boot_direct_euler[1]},{boot_direct_euler[2]},'
-        data_dump += f'{tile.boot_rotM_euler[i, 0]},{tile.boot_rotM_euler[i, 1]},{tile.boot_rotM_euler[i, 2]},'
         data_dump += '\n'
-
-        past_q_offset = q_offset
     return data_dump

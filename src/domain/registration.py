@@ -1,5 +1,4 @@
 import numpy as np
-from utilities.quat import quatToRotFlatRegistration
 
 class Registration:
     def __init__(
@@ -11,7 +10,6 @@ class Registration:
         self.ts = ts
         self.range = range
         self.avg_quat = avg_quat
-        self.rp_rotM = quatToRotFlatRegistration(avg_quat)
 
 
     @property 
@@ -39,18 +37,3 @@ class Registration:
     @avg_quat.setter
     def avg_quat(self, aq):
         self.__avg_quat = aq
-
-
-    @property 
-    def rp_rotM(self) -> np.ndarray:
-        """Roll & Pitch rotation matrix derived from the avg quaternion's euler components.
-        
-        .. math::
-
-        M = [[1, -1, p], [1, 1, -r], [-p, r, 1]]
-        """
-        return self.__rp_rotM
-    
-    @rp_rotM.setter
-    def rp_rotM(self, rp):
-        self.__rp_rotM = rp

@@ -1,5 +1,7 @@
 from io import TextIOWrapper
-from domain.decode import decodeA50, decodeF6P, decodeTile
+from domain.decode.decode_a50 import decodeA50
+from domain.decode.decode_f6p import decodeF6P
+from domain.decode.decode_tile import decodeTile
 from domain.jump import JUMP_THRESHOLD_MG
 from domain.tile import Tile
 from utilities.datafile import constructJumpLine, constructSensorBootLines, createJumpDataFile, createSensorBootDataFile
@@ -13,7 +15,6 @@ class Session:
             offsets=None,
             print_out=False,
             compute_kinematics=True,
-            prototype_sigs=False,
     ) -> None:
         # init the device objects
         self.raw_tile = decodeTile(tile_file, print_out, "Raw Tile")
@@ -36,11 +37,11 @@ class Session:
         # these will be called internal to Tile, but for now
         self.tile.computeJumps(print_out=print_out)
         self.tile.computeStaticRegistrations(print_out=print_out)
-        self.tile.computeBootOrientations(prototype_sigs=prototype_sigs, print_out=print_out)
+        self.tile.computeBootOrientations(print_out=print_out)
         # self.tile.computeTurns(print_out=print_out)
 
         # self.logJumpData()
-        # self.logSensorBootData()
+        self.logSensorBootData()
 
 
     def logJumpData(self):

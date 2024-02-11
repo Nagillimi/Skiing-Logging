@@ -16,7 +16,7 @@ def decodeF6P(file, print_out=False, header=''):
     for n in range(len(lap_indices) - 1):
         track = csv.iloc[lap_indices[n]:lap_indices[n + 1]].loc[csv['Message'] == 'record'].loc[csv['Type'] == 'Data']
         start_ts = int(lap_rows.iloc[n, 7])
-        _datetime = dt.fromtimestamp(start_ts + ts_msb)
+        _datetime = dt.datetime.fromtimestamp(start_ts + ts_msb)
         date = _datetime.date()
         tod = _datetime.time()
         duration = int(lap_rows.iloc[n, 25])

@@ -15,6 +15,7 @@ To provide more skiing analytics with an extra wearable placed above the ski boo
 - [x] jump count
 - [x] jump distance
 - [x] jump height
+- [x] boot orientations
 - [ ] turn count
   - [ ] left vs right
 - [ ] ski carving angle
@@ -82,3 +83,66 @@ Added features are aimed to be as low powered as possible, focus on obtaining re
 But, for startes a full 6dof and 9dof orientation will be implemented- hopefully leading to correlations in raw signal patterns.
 
 - [x] orientation algorithms for tile. Not aimed to be in the full wearable, so use a library.
+
+## Notebook Results (at a glance)
+
+See specific notebooks for more information and design process.
+
+### Syncing Tile with A50
+
+Since the Tile device wasn't timestamped globally, it required synchronization with the ground truths to properly align the time series signals. The altitude signals proved the best choice between the two, to generate an offset for the first timestamp. At the same time, to future proof I decided to export an altitude offset as well, since this is included in the A50 (GPS) and F6P (barometric) signals to account for weather and other relatively constant pressure effects.
+
+<img src="pics/data-sync.jpg" alt="data-sync" width="700"/>
+
+The sync was a basic search of best fit in 2D using the altitude data. The lowest MAE/MSE between the entire session selected the optimal offsets. This took a while, but only needed to be run once since the architeture allowed for either:
+
+- sending in an offset directly, that was previsouly run
+- don't require sync so forget it (since it's mainly for research in notebooks)
+
+### Jump Identification
+
+G-force and gyroscopic signals proved to be decent for jump identification, given a low G threshold and some statistical tests for confirmation.
+
+<img src="pics/jump-th.jpg" alt="jump-th" width="700"/>
+
+Listing these tests:
+
+```python
+return np.array([
+    ST.testDecreasingTrend(mG_lpf, air_range),
+    ST.testMinSampleCount(mG_lpf, air_range),
+    ST.testMinSampleCount(mG_lpf, lowG_range, min_count=10),
+    ST.testLowerSampleStdDev(mG, air_range),
+    ST.testLowerSampleStdDev(gyro, air_range),
+    ST.testLowerSampleMean(mG, air_range),
+    ST.testLowerSampleStdDev(mG, air_range, landing_range),
+    ST.testLowerSampleStdDev(gyro, air_range, landing_range),
+    ST.testLowerSampleMean(mG, air_range, landing_range),
+    ST.testLargerSampleStdDev(mG, landing_range),
+    ST.testLargerSampleStdDev(gyro, landing_range),
+    ST.testLargerSampleMean(mG, landing_range),
+    ST.testLargerSampleMean(gyro, landing_range),
+    ST.testLargeImpulse(mG, air_range),
+    ST.testTimingOfLargeImpulse(mG, landing_range),
+])
+```
+
+Singling out a single jump into the air time and landing phases used in those statistical tests:
+
+<img src="pics/jump.jpg" alt="jump" width="450"/>
+
+In the future, these statistical tests could be assigned a weight parameter to better predict a jump. Developing these weight parameters would be done through labelled data in a neural net and is yet to be implemented. However, the application currently publishes all jumps with as many statistical features as possible into a datafile for future analysis.
+
+### Frames | Sensor to Boot Orientation
+
+To report usefull skiing analytics, the orientation signals need to be in the boot frame. Unfortunately, the sensor isn't rigidly mounted to the boot (or calf for that matter) so the registration is only an estimation. However, during a ski session, the liftpeak represents a repeatable point where the ski (and by extension, the ski since it's rigidly attached) and the sensor are motionless and flat. Other points during the session were considered, so see the notebook for more.
+
+Identifying liftpeaks polled a large circular buffer for the altitude signals and reacted to points that began decreasing after a long period of increasing altitudes. This presents an assumption for a minimum lift period, where 3' was used. 
+
+The exact point for capturing an average orientation was the moment the ski landed on the liftpeak platform (when the chair is still pushing you as you slide before you get off). This is a pretty flat surface, plus you're held in place for at least a few seconds- enough for a stillness detection. A search algorithm was designed to search for stillness based on std of orientation and G-force signals.
+
+<img src="pics/still-zones.jpg" alt="still-zones" width="700"/>
+
+Using this registration allowed the rotation of the sensor frame into the boot frame. Since the important signals here are the 2D tilt angles, for carving and compression angles, heading wasn't corrected for since it'll be relative to a baseline later anyways. This allows for arbitrary placement of the sensor on the boot/calf as long as the FE planes match (for now) since rotation about the boot's x axis will always be consodered roll/carving angle.
+
+<img src="pics/sensor-boot.jpg" alt="sensor-boot" width="700"/>
