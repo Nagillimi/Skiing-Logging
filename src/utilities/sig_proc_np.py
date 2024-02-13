@@ -3,6 +3,29 @@ from scipy import signal
 from utilities.sig_proc import makeContinuousRange
 
 
+def firstDeriv(x: np.ndarray, dt, lpf=True) -> np.ndarray:
+    """Five point estimation for the first order derivative, centred about xi.
+
+    .. math::
+    
+    y' = 1/(12dt) [x_{n-2} - 8 * x_{n-1} + 8 * x_{n+1} - x_{n+2}]
+    
+    Perfroms a butter2 lowpass filter with wn=2/100 since the discrete derivative is inherently
+    noise enducing. Override `lpf` if you'd like otherwise.
+    """
+    xw = x[2:-2]
+    W = xw.shape[0]
+    if W < 1:
+        print('Error calculating derivative. Signal not long enough, must be at least 5 elements.')
+        return x
+    
+    one_twelfth_dt = 1 / (12 * dt)
+    two_zeros = [0] + [0]
+    yw = two_zeros + [(x[i-2] - 8 * x[i-1] + 8 * x[i+1] - x[i+2]) for i in range(W)] + two_zeros
+    y = np.divide(yw, one_twelfth_dt)
+    return lowpass(y, 2/100) if lpf else y
+
+
 def groupClosePointsIntoRanges(idxs: np.ndarray, th=2):
     """Return np.ndarray of ranges of sequential points grouped by closeness,
     whose changes are separated by values greater than `th`

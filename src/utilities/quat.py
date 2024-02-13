@@ -136,3 +136,7 @@ def quatRot(q_input: np.ndarray, q_rot: np.ndarray, inverse=False) -> np.ndarray
         if inverse is False else
         quatMult(quatMult(q_rot_i, q_input), q_rot)
     )
+
+
+def euler2DNormFromQuat(q: np.ndarray) -> np.ndarray:
+    return np.linalg.norm(np.abs([quatToEuler(q)[0], quatToEuler(q)[1]]))

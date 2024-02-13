@@ -35,7 +35,7 @@ class Session:
             return 
         
         # these will be called internal to Tile, but for now
-        self.tile.computeJumps(print_out=print_out)
+        # self.tile.computeJumps(print_out=print_out)
         self.tile.computeStaticRegistrations(print_out=print_out)
         self.tile.computeBootOrientations(print_out=print_out)
         # self.tile.computeTurns(print_out=print_out)

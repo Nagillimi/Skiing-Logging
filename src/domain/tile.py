@@ -6,8 +6,8 @@ from domain.track import Track
 from models.static_registration import StaticRegistration
 from models.imu import IMU
 from utilities.frames import convertToBootFrame
-from utilities.sig_proc_np import identifyRangesBelowTH, length, lowpass, lowpass
-from utilities.quat import quatMult
+from utilities.sig_proc_np import firstDeriv, identifyRangesBelowTH, length, lowpass, lowpass
+from utilities.quat import euler2DNormFromQuat, quatMult, quatToEuler
 
 class Tile:
     def __init__(
@@ -37,6 +37,8 @@ class Tile:
         self.mG_lpf = length(self.accel_lpf)
         self.imu = IMU(raw.accel, raw.gyro, raw.mag if prefer_9dof else None, print_out=print_out)
         
+        self.d_mG_lpf_dt = firstDeriv(self.mG_lpf, 0.01)
+
         # placeholder until the offsets are set from ground truth
         self.alt = self.raw_alt
         self.alt_lpf = self.raw_alt_lpf
@@ -112,11 +114,15 @@ class Tile:
         """
         self.boot_quat = np.apply_along_axis(convertToBootFrame, 1, self.imu.quat)
 
+        # center the boot orientation
         for i in range(self.boot_quat.shape[0] - 1):
             self.boot_quat[i] = quatMult(
                 self.boot_quat[i], 
                 self.static_registration.getMostRecentRegistrationQuat(self.time[i])
             )
+
+        self.boot_euler_combined = np.apply_along_axis(euler2DNormFromQuat, 1, self.boot_quat)
+        self.d_boot_euler_combined_dt = firstDeriv(self.boot_euler_combined, 0.01)
 
         if print_out:
             print('Transformed sensor orientation into boot frame using the list of static registrations.')

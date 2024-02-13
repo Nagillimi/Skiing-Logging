@@ -355,3 +355,70 @@ def plotAllSensorBootEuler(tile: Tile, r=[0, -1]):
     if len(brackets) > 0:
         for bracket in brackets:
             _ = plotSensorBootEuler(tile, r=bracket)
+
+
+def plotTurnAnalytics(tile: Tile, rrs=None, r=[0, -1]):
+    def addVerticalLines(ax, t):
+        for range in rrs:
+            if t[range] < t[r[0]] or t[range] > t[r[1]]: 
+                continue
+            ax.axvline(t[range], color='k', linestyle=':')
+        # [ax.axvline(y=t[rr], color='k', linestyle='--') for rr in rrs]
+
+    t = tile.time[r[0]:r[1]]
+    euler = np.apply_along_axis(quatToEuler, 1, tile.boot_quat[r[0]:r[1], :])
+
+    plt.rc('lines', linewidth=1)
+    fig, ax = plt.subplots(9, figsize=(18, 18))
+
+    ax[0].plot(t, tile.alt_lpf[r[0]:r[1]])
+    ax[0].set_title('Tile (lpf) Altitude', wrap=True)
+    if rrs is not None: addVerticalLines(ax[0], tile.time)
+
+    ax[1].plot(t, euler[:, 0])
+    ax[1].set_title('Boot Roll (Edge angle)', wrap=True)
+    ax[1].axhline(0, color='k', linestyle='--')
+    if rrs is not None: addVerticalLines(ax[1], tile.time)
+
+    ax[2].plot(t, euler[:, 1])
+    ax[2].set_title('Boot Pitch (Flex angle)', wrap=True)
+    ax[2].axhline(0, color='k', linestyle='--')
+    if rrs is not None: addVerticalLines(ax[2], tile.time)
+
+    ax[3].plot(t, euler[:, 2])
+    ax[3].set_title('Boot Yaw (Heading)', wrap=True)
+    if rrs is not None: addVerticalLines(ax[3], tile.time)
+
+    ax[4].plot(t, tile.boot_euler_combined[r[0]:r[1]])
+    ax[4].set_title('Boot 2D Orientation Norm', wrap=True)
+    if rrs is not None: addVerticalLines(ax[4], tile.time)
+
+    ax[5].plot(t, tile.d_boot_euler_combined_dt[r[0]:r[1]])
+    ax[5].set_title('Boot 2D Orientation Norm Deriv.', wrap=True)
+    ax[5].axhline(0, color='k', linestyle='--')
+    if rrs is not None: addVerticalLines(ax[5], tile.time)
+
+    ax[6].plot(t, tile.mG_lpf[r[0]:r[1]])
+    ax[6].set_title('Tile Filtered mG-forces', wrap=True)
+    if rrs is not None: addVerticalLines(ax[6], tile.time)
+
+    ax[7].plot(t, tile.d_mG_lpf_dt[r[0]:r[1]])
+    ax[7].set_title('Tile Filtered mG-forces Deriv.', wrap=True)
+    ax[7].axhline(0, color='k', linestyle='--')
+    if rrs is not None: addVerticalLines(ax[7], tile.time)
+
+    ax[8].plot(t, tile.mG[r[0]:r[1]])
+    ax[8].set_title('Tile Unfiltered mG-forces', wrap=True)
+    if rrs is not None: addVerticalLines(ax[8], tile.time)
+
+    plt.tight_layout()
+    plt.show()
+    return fig
+
+
+def plotAllTurnAnalytics(tile: Tile, rrs=None, r=[0, -1]):
+    _ = plotTurnAnalytics(tile, rrs=rrs, r=r)
+    brackets = [[r[1]+1000, r[1]+8000] for r in tile.static_registration.ranges]
+    if len(brackets) > 0:
+        for bracket in brackets:
+            _ = plotTurnAnalytics(tile, rrs=rrs, r=bracket)
