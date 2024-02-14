@@ -1,13 +1,14 @@
 import numpy as np
-from domain.jump import JUMP_THRESHOLD_MG, Jump
-from domain.raw_tile import RawTile
-from domain.sync import identifyOffsets
-from domain.track import Track
+from constants.jump_th import JUMP_THRESHOLD_MG
+from domain.devices.raw_tile import RawTile
+from domain.devices.track import Track
 from models.geography import Geography
+from models.jump import Jump
 from models.static_registration import StaticRegistration
 from models.imu import IMU
 from utilities.frames import convertToBootFrame
 from utilities.sig_proc_np import firstDeriv, identifyLTThInsideRanges, length, lowpass, lowpass
+from utilities.sync import identifyOffsets
 from utilities.quat import euler2DNormFromQuat, quatMult, quatToEuler
 
 class Tile:

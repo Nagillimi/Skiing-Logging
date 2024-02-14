@@ -1,10 +1,15 @@
 from io import TextIOWrapper
+from constants.jump_th import JUMP_THRESHOLD_MG
 from domain.decode.decode_a50 import decodeA50
 from domain.decode.decode_f6p import decodeF6P
 from domain.decode.decode_tile import decodeTile
-from domain.jump import JUMP_THRESHOLD_MG
-from domain.tile import Tile
-from utilities.datafile import constructJumpLine, constructSensorBootLines, createJumpDataFile, createSensorBootDataFile
+from models.tile import Tile
+from utilities.datafile import (
+    constructJumpLine,
+    constructSensorBootLines,
+    createJumpDataFile,
+    createSensorBootDataFile
+)
 
 class Session:
     def __init__(

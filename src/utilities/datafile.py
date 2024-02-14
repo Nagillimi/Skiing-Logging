@@ -1,7 +1,8 @@
 import os
 import numpy as np
-from domain.jump import JUMP_THRESHOLD_MG, Jump
-from domain.tile import Tile
+from constants.jump_th import JUMP_THRESHOLD_MG
+from models.tile import Tile
+from models.jump import Jump
 from utilities.quat import quatToEuler
 from utilities.sig_proc import mean, std
 

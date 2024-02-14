@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from domain.jump import JUMP_THRESHOLD_MG
-from domain.track import Track
-from domain.tile import Tile
+from constants.jump_th import JUMP_THRESHOLD_MG
+from domain.devices.track import Track
+from models.tile import Tile
 from utilities.quat import eulerToQuat, quatRot, quatToEuler
 
 def plot_a50_f6p(a: Track, f: Track):
@@ -365,6 +365,11 @@ def plotTurnAnalytics(tile: Tile, rrs=None, r=[0, -1]):
             ax.axvline(t[range], color='k', linestyle=':')
         # [ax.axvline(y=t[rr], color='k', linestyle='--') for rr in rrs]
 
+    def addRunZones(ax, t):
+        for i in range(tile.downhill_idxs.shape[0]):
+            if t[tile.downhill_idxs[i, 0]] > t[r[0]] and t[tile.downhill_idxs[i, 1]] < t[r[1]]: 
+                ax.axvspan(t[tile.downhill_idxs[i, 0]], t[tile.downhill_idxs[i, 1]], color='g', alpha=0.25)
+
     t = tile.time[r[0]:r[1]]
     euler = np.apply_along_axis(quatToEuler, 1, tile.boot_quat[r[0]:r[1], :])
 
@@ -374,42 +379,51 @@ def plotTurnAnalytics(tile: Tile, rrs=None, r=[0, -1]):
     ax[0].plot(t, tile.alt_lpf[r[0]:r[1]])
     ax[0].set_title('Tile (lpf) Altitude', wrap=True)
     if rrs is not None: addVerticalLines(ax[0], tile.time)
+    addRunZones(ax[0], tile.time)
 
     ax[1].plot(t, euler[:, 0])
     ax[1].set_title('Boot Roll (Edge angle)', wrap=True)
     ax[1].axhline(0, color='k', linestyle='--')
     if rrs is not None: addVerticalLines(ax[1], tile.time)
+    addRunZones(ax[1], tile.time)
 
     ax[2].plot(t, euler[:, 1])
     ax[2].set_title('Boot Pitch (Flex angle)', wrap=True)
     ax[2].axhline(0, color='k', linestyle='--')
     if rrs is not None: addVerticalLines(ax[2], tile.time)
+    addRunZones(ax[2], tile.time)
 
     ax[3].plot(t, euler[:, 2])
     ax[3].set_title('Boot Yaw (Heading)', wrap=True)
     if rrs is not None: addVerticalLines(ax[3], tile.time)
+    addRunZones(ax[3], tile.time)
 
     ax[4].plot(t, tile.boot_euler_combined[r[0]:r[1]])
     ax[4].set_title('Boot 2D Orientation Norm', wrap=True)
     if rrs is not None: addVerticalLines(ax[4], tile.time)
+    addRunZones(ax[4], tile.time)
 
     ax[5].plot(t, tile.d_boot_euler_combined_dt[r[0]:r[1]])
     ax[5].set_title('Boot 2D Orientation Norm Deriv.', wrap=True)
     ax[5].axhline(0, color='k', linestyle='--')
     if rrs is not None: addVerticalLines(ax[5], tile.time)
+    addRunZones(ax[5], tile.time)
 
     ax[6].plot(t, tile.mG_lpf[r[0]:r[1]])
     ax[6].set_title('Tile Filtered mG-forces', wrap=True)
     if rrs is not None: addVerticalLines(ax[6], tile.time)
+    addRunZones(ax[6], tile.time)
 
     ax[7].plot(t, tile.d_mG_lpf_dt[r[0]:r[1]])
     ax[7].set_title('Tile Filtered mG-forces Deriv.', wrap=True)
     ax[7].axhline(0, color='k', linestyle='--')
     if rrs is not None: addVerticalLines(ax[7], tile.time)
+    addRunZones(ax[7], tile.time)
 
     ax[8].plot(t, tile.mG[r[0]:r[1]])
     ax[8].set_title('Tile Unfiltered mG-forces', wrap=True)
     if rrs is not None: addVerticalLines(ax[8], tile.time)
+    addRunZones(ax[8], tile.time)
 
     plt.tight_layout()
     plt.show()
@@ -418,7 +432,7 @@ def plotTurnAnalytics(tile: Tile, rrs=None, r=[0, -1]):
 
 def plotAllTurnAnalytics(tile: Tile, rrs=None, r=[0, -1]):
     _ = plotTurnAnalytics(tile, rrs=rrs, r=r)
-    brackets = [[r[1]+1000, r[1]+8000] for r in tile.static_registration.ranges]
+    brackets = [[r[1], r[1]+12000] for r in tile.static_registration.ranges]
     if len(brackets) > 0:
         for bracket in brackets:
             _ = plotTurnAnalytics(tile, rrs=rrs, r=bracket)

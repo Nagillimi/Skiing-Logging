@@ -1,6 +1,6 @@
 import pandas as pd
 from utilities.decorators import printTracks
-from domain.raw_tile import RawTile
+from domain.devices.raw_tile import RawTile
 
 
 @printTracks

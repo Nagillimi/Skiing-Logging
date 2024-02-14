@@ -1,6 +1,6 @@
 import numpy as np
-from domain.stitch import stitch
-from domain.track import Track
+from utilities.stitch import stitch
+from domain.devices.track import Track
 
 
 def identifyOffsets(

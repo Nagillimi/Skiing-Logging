@@ -1,6 +1,5 @@
 import numpy as np
 from domain.registration import Registration
-from models.geography import Geography
 from models.imu import IMU
 from utilities.frames import convertToBootFrame
 from utilities.quat import avgQuat, eulerToQuat, inverseQuat, quatToEuler

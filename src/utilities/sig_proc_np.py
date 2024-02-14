@@ -2,17 +2,29 @@ import numpy as np
 from scipy import signal
 from utilities.sig_proc import makeContinuousRange
 
-def onlyIdxsInsideRanges(idxs: np.ndarray, ranges: np.ndarray) -> bool:
+def onlyIdxsInsideRanges(idxs: np.ndarray, ranges: np.ndarray) -> np.ndarray:
     _idxs = []
-    for i in range(idxs.shape[0]):
-        for j in range(ranges.shape[0]):
-            if (
-                idxs[i, 0] > ranges[j, 0] and
-                idxs[i, 1] > ranges[j, 0] and
-                idxs[i, 0] < ranges[j, 1] and
-                idxs[i, 1] < ranges[j, 1]
-            ):
-                _idxs.append([idxs[i, 0], idxs[i, 1]])
+
+    if idxs.ndim == 2:
+        for i in range(idxs.shape[0]):
+            for j in range(ranges.shape[0]):
+                if (
+                    idxs[i, 0] > ranges[j, 0] and
+                    idxs[i, 1] > ranges[j, 0] and
+                    idxs[i, 0] < ranges[j, 1] and
+                    idxs[i, 1] < ranges[j, 1]
+                ):
+                    _idxs.append([idxs[i, 0], idxs[i, 1]])
+
+    elif idxs.ndim == 1:
+        for i in range(idxs.shape[0]):
+            for j in range(ranges.shape[0]):
+                if (
+                    idxs[i] > ranges[j, 0] and
+                    idxs[i] < ranges[j, 1] 
+                ):
+                    _idxs.append(idxs[i])
+
     return np.array(_idxs)
 
 
@@ -133,3 +145,15 @@ def minIndex(x: np.ndarray, r=None):
 def rmse(x1: np.ndarray, x2: np.ndarray):
     """Root mean sum error between `x1` and `x2`."""
     return np.sqrt(mse(x1, x2))
+
+
+def zeroCrossingIdxsGTThInsideRanges(x: np.ndarray, th, ranges):
+    xsign = np.sign(x)
+    sign_changes = (np.roll(xsign, 1) - xsign) != 0
+    sign_changes_r = np.where(sign_changes > 0)[0]
+
+    neg_diff = -np.diff(x)
+    large_diff_r = np.where(neg_diff > th)[0]
+
+    idxs = np.intersect1d(sign_changes_r, large_diff_r)
+    return onlyIdxsInsideRanges(idxs, ranges)

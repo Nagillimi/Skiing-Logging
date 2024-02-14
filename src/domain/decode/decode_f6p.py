@@ -1,6 +1,6 @@
 import datetime as dt
 import pandas as pd
-from domain.track import Track
+from domain.devices.track import Track
 from utilities.decorators import printTracks
 
 
