@@ -1,5 +1,6 @@
 import numpy as np
 from constants.jump_th import JUMP_THRESHOLD_MG
+from domain.g_force import GForce
 from utilities.sig_proc_np import maxIndex, minIndex
 from utilities.sig_proc import cumtrapz
 from utilities.stat_tests import StatTests as ST
@@ -7,14 +8,13 @@ from utilities.stat_tests import StatTests as ST
 class Jump:
     def __init__(self,
             lowG_range: np.ndarray,
-            mG_lpf: np.ndarray,
-            mG: np.ndarray,
+            g_force: GForce,
             gyro: np.ndarray,
             print_out=False
     ) -> None:
         self.lowG_range = lowG_range
-        self.mG_lpf = mG_lpf
-        self.mG = mG
+        self.mG_lpf = g_force.mG_lpf
+        self.mG = g_force.mG
         self.gyro = gyro
         self.confidence = 0.
         self.tests_passed = 0

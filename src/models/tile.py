@@ -2,12 +2,14 @@ import numpy as np
 from constants.jump_th import JUMP_THRESHOLD_MG
 from domain.devices.raw_tile import RawTile
 from domain.devices.track import Track
+from domain.g_force import GForce
 from models.geography import Geography
 from models.jump import Jump
 from models.static_registration import StaticRegistration
 from models.imu import IMU
+from models.turn import Turn
 from utilities.frames import convertToBootFrame
-from utilities.sig_proc_np import firstDeriv, identifyLTThInsideRanges, length, lowpass, lowpass
+from utilities.sig_proc_np import deriv, identifyLTThInsideRanges, length, lowpass, lowpass, zeroCrossingIdxsGTThInsideRanges
 from utilities.sync import identifyOffsets
 from utilities.quat import euler2DNormFromQuat, quatMult, quatToEuler
 
@@ -25,7 +27,7 @@ class Tile:
         self.identifyJumps(print_out=print_out)
         self.identifyStaticRegistrations(print_out=print_out)
         self.computeBootOrientations(print_out=print_out)
-        # self.identifyTurns(print_out=print_out)
+        self.identifyTurns(print_out=print_out)
 
 
     def __printProps__(self, prefix="\t"):
@@ -40,12 +42,8 @@ class Tile:
         self.raw_alt = 44307.694 * (1 - (raw.pres / 1013.25)**0.190284)
         self.raw_alt_lpf = lowpass(self.raw_alt, 1/100, 'butter2')
         self.gyro_v = length(raw.gyro)
-        self.mG = length(raw.accel)
-        self.accel_lpf = lowpass(raw.accel, 3/100, 'butter2')
-        self.mG_lpf = length(self.accel_lpf)
         self.imu = IMU(raw.accel, raw.gyro, raw.mag if prefer_9dof else None, print_out=print_out)
-        
-        self.d_mG_lpf_dt = firstDeriv(self.mG_lpf, 0.01)
+        self.g_force = GForce(raw.accel)
 
         # placeholder until the offsets are set from ground truth
         self.alt = self.raw_alt
@@ -115,9 +113,9 @@ class Tile:
         
         Confidence values will be associated with each `Jump` instance.
         """
-        lowG_els = identifyLTThInsideRanges(self.mG_lpf, JUMP_THRESHOLD_MG, self.downhill_idxs)
+        lowG_els = identifyLTThInsideRanges(self.g_force.mG_lpf, JUMP_THRESHOLD_MG, self.downhill_idxs)
         self.jumps = [
-            Jump(lowG_els[row], self.mG_lpf, self.mG, self.gyro_v, print_out)
+            Jump(lowG_els[row], self.g_force, self.gyro_v, print_out)
             for row in range(lowG_els.shape[0])
         ]
 
@@ -133,7 +131,7 @@ class Tile:
             self.peak_idxs,
             self.time,
             self.alt_lpf,
-            self.mG,
+            self.g_force.mG,
             self.imu,
             print_out
         )
@@ -166,7 +164,7 @@ class Tile:
             )
 
         self.boot_euler_combined = np.apply_along_axis(euler2DNormFromQuat, 1, self.boot_quat)
-        self.d_boot_euler_combined_dt = firstDeriv(self.boot_euler_combined, 0.01)
+        self.d_boot_euler_combined_dt = deriv(self.boot_euler_combined, 0.01)
 
         if print_out:
             print('Transformed sensor orientation into boot frame using the list of static registrations.')
@@ -174,6 +172,11 @@ class Tile:
 
     def identifyTurns(self, print_out=False):
         """Identify all turn-based kinematics."""
+        highG_els = zeroCrossingIdxsGTThInsideRanges(self.g_force.d_mG_lpf_dt, 0.25, self.downhill_idxs)
+        self.turns = [
+            Turn(highG_els[idx], self.g_force, self.boot_quat, print_out)
+            for idx in range(highG_els.shape[0])
+        ]
 
 
     @property
@@ -182,8 +185,8 @@ class Tile:
         return self.__time
     
     @time.setter
-    def time(self, t):
-        self.__time = t
+    def time(self, time):
+        self.__time = time
 
 
     @property
@@ -197,8 +200,8 @@ class Tile:
         return self.__raw_alt
     
     @raw_alt.setter
-    def raw_alt(self, ra):
-        self.__raw_alt = ra
+    def raw_alt(self, raw_alt):
+        self.__raw_alt = raw_alt
 
 
     @property
@@ -207,8 +210,8 @@ class Tile:
         return self.__raw_alt_lpf
 
     @raw_alt_lpf.setter
-    def raw_alt_lpf(self, ral):
-        self.__raw_alt_lpf = ral
+    def raw_alt_lpf(self, raw_alt_lpf):
+        self.__raw_alt_lpf = raw_alt_lpf
 
 
     @property
@@ -217,8 +220,8 @@ class Tile:
         return self.__alt
     
     @alt.setter
-    def alt(self, ra):
-        self.__alt = ra
+    def alt(self, alt):
+        self.__alt = alt
 
 
     @property
@@ -227,8 +230,8 @@ class Tile:
         return self.__alt_lpf
 
     @alt_lpf.setter
-    def alt_lpf(self, ral):
-        self.__alt_lpf = ral
+    def alt_lpf(self, alt_lpf):
+        self.__alt_lpf = alt_lpf
 
 
     @property
@@ -237,48 +240,8 @@ class Tile:
         return self.__gyro_v
     
     @gyro_v.setter
-    def gyro_v(self, g):
-        self.__gyro_v = g
-
-
-    @property
-    def mG(self) -> np.ndarray:
-        """Unfiltered mG-forces (3D accelerometer vector magnitude). [Nx1]"""
-        return self.__mG
-
-    @mG.setter
-    def mG(self, mg):
-        self.__mG = mg
-
-
-    @property
-    def accel_lpf(self) -> np.ndarray:
-        """Filtered accelerometer signals. [Nx1]"""
-        return self.__accel_lpf
-    
-    @accel_lpf.setter
-    def accel_lpf(self, al):
-        self.__accel_lpf = al
-
-
-    @property
-    def mG_lpf(self) -> np.ndarray:
-        """Filtered mG-forces. [Nx1]"""
-        return self.__mG_lpf
-    
-    @mG_lpf.setter
-    def mG_lpf(self, mgl):
-        self.__mG_lpf = mgl
-    
-
-    @property
-    def jumps(self) -> list[Jump]:
-        """Jumps identified from kinematic analysis, includes analytics inside the internal `Jump` objects."""
-        return self.__jumps
-    
-    @jumps.setter
-    def jumps(self, js):
-        self.__jumps = js
+    def gyro_v(self, gyro_v):
+        self.__gyro_v = gyro_v
 
 
     @property
@@ -287,9 +250,19 @@ class Tile:
         return self.__imu
     
     @imu.setter
-    def imu(self, i):
-        self.__imu = i
+    def imu(self, imu):
+        self.__imu = imu
         
+        
+    @property
+    def g_force(self) -> GForce:
+        """G force object containing the filtered, derivative, and raw norm signals."""
+        return self.__g_force
+
+    @g_force.setter
+    def g_force(self, g_force):
+        self.__g_force = g_force
+
 
     @property
     def geography(self) -> Geography:
@@ -338,13 +311,23 @@ class Tile:
         
 
     @property
+    def jumps(self) -> list[Jump]:
+        """Jumps identified from kinematic analysis, includes analytics inside the internal `Jump` objects."""
+        return self.__jumps
+    
+    @jumps.setter
+    def jumps(self, jumps):
+        self.__jumps = jumps
+
+
+    @property
     def static_registration(self) -> StaticRegistration:
         """Registration for sensor to boot frame rotations. [1x4]"""
         return self.__static_registration
     
     @static_registration.setter
-    def static_registration(self, sr):
-        self.__static_registration = sr
+    def static_registration(self, static_registration):
+        self.__static_registration = static_registration
         
 
     @property
@@ -355,5 +338,16 @@ class Tile:
         return self.__boot_rot
     
     @boot_quat.setter
-    def boot_quat(self, br):
-        self.__boot_rot = br
+    def boot_quat(self, boot_rot):
+        self.__boot_rot = boot_rot
+
+
+    @property
+    def turns(self) -> list[Turn]:
+        """Turns identified from kinematic analysis, includes analytics inside the internal `Turn` objects."""
+        return self.__turns
+    
+    @turns.setter
+    def turns(self, turns):
+        self.__turns = turns
+

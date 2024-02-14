@@ -28,7 +28,7 @@ def onlyIdxsInsideRanges(idxs: np.ndarray, ranges: np.ndarray) -> np.ndarray:
     return np.array(_idxs)
 
 
-def firstDeriv(x: np.ndarray, dt, lpf=True) -> np.ndarray:
+def deriv(x: np.ndarray, dt, lpf=True) -> np.ndarray:
     """Five point estimation for the first order derivative, centred about xi.
 
     .. math::
@@ -147,13 +147,15 @@ def rmse(x1: np.ndarray, x2: np.ndarray):
     return np.sqrt(mse(x1, x2))
 
 
-def zeroCrossingIdxsGTThInsideRanges(x: np.ndarray, th, ranges):
+def zeroCrossingIdxs(x: np.ndarray) -> np.ndarray:
     xsign = np.sign(x)
     sign_changes = (np.roll(xsign, 1) - xsign) != 0
-    sign_changes_r = np.where(sign_changes > 0)[0]
+    return np.where(sign_changes > 0)[0]
 
-    neg_diff = -np.diff(x)
-    large_diff_r = np.where(neg_diff > th)[0]
+
+def zeroCrossingIdxsGTThInsideRanges(x: np.ndarray, th, ranges) -> np.ndarray:
+    sign_changes_r = zeroCrossingIdxs(x)
+    large_diff_r = np.where(-np.diff(x) > th)[0]
 
     idxs = np.intersect1d(sign_changes_r, large_diff_r)
     return onlyIdxsInsideRanges(idxs, ranges)
