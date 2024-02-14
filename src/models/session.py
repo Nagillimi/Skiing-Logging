@@ -18,7 +18,11 @@ class Session:
     ) -> None:
         # init the device objects
         self.raw_tile = decodeTile(tile_file, print_out, "Raw Tile")
-        self.tile = Tile(self.raw_tile, print_out=print_out)
+        self.tile = Tile(
+            self.raw_tile,
+            print_out=print_out,
+            compute_kinematics=compute_kinematics
+        )
 
         if a50_file is not None:
             self.a50 = decodeA50(a50_file, print_out, "A50")
@@ -31,16 +35,7 @@ class Session:
         if f6p_file is not None:
             self.f6p = decodeF6P(f6p_file, print_out, "F6P")
 
-        if not compute_kinematics:
-            return 
-        
-        # these will be called internal to Tile, but for now
-        # self.tile.computeJumps(print_out=print_out)
-        self.tile.computeStaticRegistrations(print_out=print_out)
-        self.tile.computeBootOrientations(print_out=print_out)
-        # self.tile.computeTurns(print_out=print_out)
-
-        # self.logJumpData()
+        self.logJumpData()
         self.logSensorBootData()
 
 

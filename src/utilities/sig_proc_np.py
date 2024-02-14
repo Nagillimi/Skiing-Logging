@@ -2,6 +2,19 @@ import numpy as np
 from scipy import signal
 from utilities.sig_proc import makeContinuousRange
 
+def onlyIdxsInsideRanges(idxs: np.ndarray, ranges: np.ndarray) -> bool:
+    _idxs = []
+    for i in range(idxs.shape[0]):
+        for j in range(ranges.shape[0]):
+            if (
+                idxs[i, 0] > ranges[j, 0] and
+                idxs[i, 1] > ranges[j, 0] and
+                idxs[i, 0] < ranges[j, 1] and
+                idxs[i, 1] < ranges[j, 1]
+            ):
+                _idxs.append([idxs[i, 0], idxs[i, 1]])
+    return np.array(_idxs)
+
 
 def firstDeriv(x: np.ndarray, dt, lpf=True) -> np.ndarray:
     """Five point estimation for the first order derivative, centred about xi.
@@ -43,12 +56,13 @@ def groupClosePointsIntoRanges(idxs: np.ndarray, th=2):
     return np.array(ranges)
 
 
-def identifyRangesBelowTH(x: np.ndarray, th):
+def identifyLTThInsideRanges(x: np.ndarray, th, ranges):
     idxs = idxsUnderTH(x, th)
-    return groupClosePointsIntoRanges(idxs)
+    idxs = groupClosePointsIntoRanges(idxs)
+    return onlyIdxsInsideRanges(idxs, ranges)
 
 
-def idxsUnderTH(x: np.ndarray, th=200):
+def idxsUnderTH(x: np.ndarray, th):
     """Return a np.ndarray of indicies of the input signal `x` whose elements fall
     below `th`.
     """

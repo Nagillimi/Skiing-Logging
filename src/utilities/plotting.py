@@ -422,3 +422,69 @@ def plotAllTurnAnalytics(tile: Tile, rrs=None, r=[0, -1]):
     if len(brackets) > 0:
         for bracket in brackets:
             _ = plotTurnAnalytics(tile, rrs=rrs, r=bracket)
+
+
+def plotRunGeographyAnalysis(tile: Tile, r=[0, -1]):
+    t = tile.time[r[0]:r[1]]
+    boot_euler = np.apply_along_axis(quatToEuler, 1, tile.boot_quat[r[0]:r[1], :])
+    lbs = [el.idx for el in tile.geography.lift_bottoms]
+    lps = [el.idx for el in tile.geography.lift_peaks]
+    rps = [el.idx for el in tile.geography.run_peaks]
+    rbs = [el.idx for el in tile.geography.run_bottoms]
+
+    def addKeyGeographicalPts(ax, t):
+        for lb in lbs:
+            if t[lb] > t[r[0]] and t[lb] < t[r[1]]: 
+                ax.axvline(t[lb], color='k', linestyle='--')
+        for lp in lps:
+            if t[lp] > t[r[0]] and t[lp] < t[r[1]]: 
+                ax.axvline(t[lp], color='k', linestyle='--')
+        for rp in rps:
+            if t[rp] > t[r[0]] and t[rp] < t[r[1]]: 
+                ax.axvline(t[rp], color='g', linestyle='--')
+        for rb in rbs:
+            if t[rb] > t[r[0]] and t[rb] < t[r[1]]: 
+                ax.axvline(t[rb], color='r', linestyle='--')
+
+    def addKeyGeographicalZones(ax, t):
+        for i in range(tile.downhill_idxs.shape[0]):
+            if t[tile.downhill_idxs[i, 0]] > t[r[0]] and t[tile.downhill_idxs[i, 1]] < t[r[1]]: 
+                ax.axvspan(t[tile.downhill_idxs[i, 0]], t[tile.downhill_idxs[i, 1]], color='g', alpha=0.25)
+        for i in range(tile.lift_idxs.shape[0]):
+            if t[tile.lift_idxs[i, 0]] > t[r[0]] and t[tile.lift_idxs[i, 1]] < t[r[1]]: 
+                ax.axvspan(t[tile.lift_idxs[i, 0]], t[tile.lift_idxs[i, 1]], color='r', alpha=0.25)
+        for i in range(tile.peak_idxs.shape[0]):
+            if t[tile.peak_idxs[i, 0]] > t[r[0]] and t[tile.peak_idxs[i, 1]] < t[r[1]]: 
+                ax.axvspan(t[tile.peak_idxs[i, 0]], t[tile.peak_idxs[i, 1]], color='y', alpha=0.25)
+
+    plt.rc('lines', linewidth=1)
+    fig, ax = plt.subplots(5, figsize=(15, 11))
+
+    ax[0].plot(t, tile.alt_lpf[r[0]:r[1]])
+    addKeyGeographicalPts(ax[0], tile.time)
+    addKeyGeographicalZones(ax[0], tile.time)
+    ax[0].set_title('Tile Altitude with Still Zones', wrap=True)
+
+    ax[1].plot(t, boot_euler[:, 0])
+    addKeyGeographicalPts(ax[1], tile.time)
+    addKeyGeographicalZones(ax[1], tile.time)
+    ax[1].set_title('Tile Roll with Still Zones', wrap=True)
+
+    ax[2].plot(t, boot_euler[:, 1])
+    addKeyGeographicalPts(ax[2], tile.time)
+    addKeyGeographicalZones(ax[2], tile.time)
+    ax[2].set_title('Tile Pitch with Still Zones', wrap=True)
+
+    ax[3].plot(t, boot_euler[:, 2])
+    addKeyGeographicalPts(ax[3], tile.time)
+    addKeyGeographicalZones(ax[3], tile.time)
+    ax[3].set_title('Tile Yaw with Still Zones', wrap=True)
+
+    ax[4].plot(t, tile.mG_lpf[r[0]:r[1]])
+    addKeyGeographicalPts(ax[4], tile.time)
+    addKeyGeographicalZones(ax[4], tile.time)
+    ax[4].set_title('Tile Filtered mG Forces with Still Zones', wrap=True)
+
+    plt.tight_layout()
+    plt.show()
+    return fig

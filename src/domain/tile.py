@@ -3,10 +3,11 @@ from domain.jump import JUMP_THRESHOLD_MG, Jump
 from domain.raw_tile import RawTile
 from domain.sync import identifyOffsets
 from domain.track import Track
+from models.geography import Geography
 from models.static_registration import StaticRegistration
 from models.imu import IMU
 from utilities.frames import convertToBootFrame
-from utilities.sig_proc_np import firstDeriv, identifyRangesBelowTH, length, lowpass, lowpass
+from utilities.sig_proc_np import firstDeriv, identifyLTThInsideRanges, length, lowpass, lowpass
 from utilities.quat import euler2DNormFromQuat, quatMult, quatToEuler
 
 class Tile:
@@ -15,9 +16,15 @@ class Tile:
             raw: RawTile,
             prefer_9dof=False,
             print_out=False,
+            compute_kinematics=True,
     ):
         self.time = raw.time / 1000
         self.constructProcessedSignals(raw, prefer_9dof, print_out)
+        self.identifyGeographicalPoints(print_out=print_out)
+        self.identifyJumps(print_out=print_out)
+        self.identifyStaticRegistrations(print_out=print_out)
+        self.computeBootOrientations(print_out=print_out)
+        # self.identifyTurns(print_out=print_out)
 
 
     def __printProps__(self, prefix="\t"):
@@ -83,25 +90,61 @@ class Tile:
         self.alt_lpf = self.raw_alt_lpf - alt_offset
 
 
-    def computeJumps(self, print_out=False):
+    def identifyGeographicalPoints(self, print_out=False):
+        """Identifies key geographical points of interest, including lift peaks, run peaks, and 
+        run bottoms for internal storage and use with other identifications.
+        """
+        self.geography = Geography(self.time, self.alt_lpf, print_out)
+        self.downhill_idxs = np.transpose([
+            [el.idx for el in self.geography.run_peaks],
+            [el.idx for el in self.geography.run_bottoms],
+        ])
+        self.lift_idxs = np.transpose([
+            [el.idx for el in self.geography.lift_bottoms],
+            [el.idx for el in self.geography.lift_peaks],
+        ])
+        self.peak_idxs = np.transpose([
+            [el.idx for el in self.geography.lift_peaks],
+            [el.idx for el in self.geography.run_peaks],
+        ])
+
+
+    def identifyJumps(self, print_out=False):
         """Identify all points of low G-force and run the jump id pipeline on each.
         
         Confidence values will be associated with each `Jump` instance.
         """
-        lowG_els = identifyRangesBelowTH(self.mG_lpf, JUMP_THRESHOLD_MG)
+        lowG_els = identifyLTThInsideRanges(self.mG_lpf, JUMP_THRESHOLD_MG, self.downhill_idxs)
         self.jumps = [
             Jump(lowG_els[row], self.mG_lpf, self.mG, self.gyro_v, print_out)
             for row in range(lowG_els.shape[0])
         ]
 
 
-    def computeStaticRegistrations(self, print_out=False):
-        """Identifies points for static sensor tile boot registrations.
+    def identifyStaticRegistrations(self, print_out=False):
+        """Identifies points for static sensor tile boot registrations, seen as the motionless 
+        lift peaks after the moment of landing.
 
         Store with an attached timestamp, so that the system computes boot orientations based on new
         registrations (if any pass the tests!)
         """
-        self.static_registration = StaticRegistration(self.time, self.alt_lpf, self.mG, self.imu, print_out)
+        self.static_registration = StaticRegistration(
+            self.peak_idxs,
+            self.time,
+            self.alt_lpf,
+            self.mG,
+            self.imu,
+            print_out
+        )
+
+
+    def identifyDynamicResitrations(self):
+        """Identifies points for dynamic sensor tile boot registrations, seen as the moments of low
+        g-forces during turning, where the ski is estimated to be flat.
+
+        Store with an attached timestamp, so that the system computes boot orientations based on new
+        registrations (if any pass the tests!)
+        """
 
 
     def computeBootOrientations(self, print_out=False):
@@ -128,7 +171,7 @@ class Tile:
             print('Transformed sensor orientation into boot frame using the list of static registrations.')
 
 
-    def computeTurns(self, print_out=False):
+    def identifyTurns(self, print_out=False):
         """Identify all turn-based kinematics."""
 
 
@@ -245,6 +288,52 @@ class Tile:
     @imu.setter
     def imu(self, i):
         self.__imu = i
+        
+
+    @property
+    def geography(self) -> Geography:
+        """Key geographical moments/points of interest."""
+        return self.__geography
+    
+    @geography.setter
+    def geography(self, geography):
+        self.__geography = geography
+        
+
+    @property
+    def downhill_idxs(self) -> np.ndarray:
+        return self.__downhill_idxs
+    
+    @downhill_idxs.setter
+    def downhill_idxs(self, downhill_idxs):
+        self.__downhill_idxs = downhill_idxs
+        
+
+    @property
+    def lift_idxs(self) -> np.ndarray:
+        return self.__lift_idxs
+    
+    @lift_idxs.setter
+    def lift_idxs(self, lift_idxs):
+        self.__lift_idxs = lift_idxs
+        
+
+    @property
+    def peak_idxs(self) -> np.ndarray:
+        return self.__peak_idxs
+    
+    @peak_idxs.setter
+    def peak_idxs(self, peak_idxs):
+        self.__peak_idxs = peak_idxs
+        
+
+    @property
+    def bottom_idxs(self) -> np.ndarray:
+        return self.__bottom_idxs
+    
+    @bottom_idxs.setter
+    def bottom_idxs(self, bottom_idxs):
+        self.__bottom_idxs = bottom_idxs
         
 
     @property

@@ -1,5 +1,6 @@
 import numpy as np
 from domain.registration import Registration
+from models.geography import Geography
 from models.imu import IMU
 from utilities.frames import convertToBootFrame
 from utilities.quat import avgQuat, eulerToQuat, inverseQuat, quatToEuler
@@ -9,81 +10,20 @@ from utilities.sig_proc import maxIndex
 class StaticRegistration:
     def __init__(
             self,
+            peak_idxs: np.ndarray,
             time: np.ndarray,
             alt_lpf: np.ndarray,
             mG: np.ndarray,
             imu: IMU,
             print_out=False,
         ) -> None:
+        self.peak_idxs = peak_idxs
         self.time = time
         self.alt_lpf = alt_lpf
         self.mG = mG
         self.imu = imu
 
         self.identify(print_out=print_out)
-
-
-    def liftPeakIdx(self, min_idx=0, window_s=3*60, th=5, within_s=60):
-        """Causal!
-
-        Returns the index where a max altitude is reached based on a drop detection within a certain period
-        `within_s` seconds and threshold `th`. Begins the index search from the `min_idx` index- default `0`.
-
-        Assumes a ski hill where you begin with a lift! Otherwise, add a delay in `computeCoarseStillRanges()` which 
-        calls this function.
-        
-        Confirms that this is a max over the last period `window_s` seconds.
-        """
-        dx = 1
-        fs = 100
-        x = self.alt_lpf[min_idx:]
-        for i in range(int(x.shape[0] / dx)):
-            i *= dx
-            if i < window_s * fs:
-                continue
-            if x[i - (within_s * fs)] - x[i] > th and x[i - (within_s * fs)] == max(x[i - (window_s * fs):i]):
-                return min_idx + i - (within_s * fs)
-        return None
-    
-
-    def runStartIdx(self, min_idx, th=20, within_s=10):
-        """Causal!
-
-        Returns the index where a run begins based on a drop detection within a certain period
-        `within_s` seconds and threshold `th`. Begins the index search from the `min_idx` index- default `0`.
-
-        Assumes a ski hill where you begin with a lift! Otherwise, add a delay in `computeCoarseStillRanges()` which 
-        calls this function.
-        
-        Confirms that this is a max over the last period `window_s` seconds.
-        """
-        dx = 10
-        fs = 100
-        x = self.alt_lpf[min_idx:]
-        for i in range(int(x.shape[0] / dx)):
-            i *= dx
-            if i < within_s * fs:
-                continue
-            if x[i - (within_s * fs)] - x[i] > th:
-                return min_idx + i - (within_s * fs)
-        return None
-            
-    
-    def computeCoarseStillRanges(self, print_out=False):
-        self.coarse_ranges = []
-        # coarse_addition = 4000
-        while True:
-            first_idx = self.coarse_ranges[-1][0] if len(self.coarse_ranges) > 0 else 0
-            latest_peak = self.liftPeakIdx(min_idx=first_idx)
-            if latest_peak is None:
-                break
-            
-            latest_run_start = self.runStartIdx(min_idx=latest_peak)
-            if latest_run_start is None:
-                break
-            
-            self.coarse_ranges.append([latest_peak, latest_run_start])
-            if print_out: print('Coarse static registration range found:', [latest_peak, latest_run_start])
 
 
     def testMotionForStillness(self, r):
@@ -190,7 +130,9 @@ class StaticRegistration:
 
 
     def longestFineStillRange(self, r=[0, -1], print_out=False) -> list | None:
-        """Uses the coarse range from the lift peak and searches for still ranges, returning the longest range."""
+        """Uses the coarse range from the lift peak and searches for still ranges, returning
+        the longest range.
+        """
         fine_ranges = self.computeFineStillRanges(r=r, print_out=print_out)
         if print_out: print('Fine static registration ranges:', fine_ranges)
         fine_sizes = [p[1] - p[0] for p in fine_ranges if len(p) > 0]
@@ -212,14 +154,15 @@ class StaticRegistration:
 
 
     def identify(self, print_out=False):
-        """Identifies first the coarse range fro mthe lift peak, then identifies the longest moment of stillness 
-        in that range for an average registration for sensor to boot reorientations.
+        """Identifies first the coarse range fro mthe lift peak, then identifies the longest moment of
+        stillness in that range for an average registration for sensor to boot reorientations.
         """
-        if print_out: print('Identifying static ranges up to index:', self.time.shape[0])
-        self.computeCoarseStillRanges(print_out=print_out)
+        if print_out:
+            print('Identifying static ranges up to index:', self.time.shape[0])
+
         self.ranges = [
-            self.longestFineStillRange(r=coarse_range, print_out=print_out) 
-            for coarse_range in self.coarse_ranges
+            self.longestFineStillRange(r=peak_idx, print_out=print_out) 
+            for peak_idx in self.peak_idxs
         ]
         self.assignRegistrationsFromRanges(print_out=print_out)
 
@@ -250,15 +193,6 @@ class StaticRegistration:
         euler_offset_b = quatToEuler(q_offset_b)
         return inverseQuat(eulerToQuat(np.array([euler_offset_b[0], euler_offset_b[1], 0])))
             
-
-    @property
-    def coarse_ranges(self) -> list[list]:
-        return self.__coarse_ranges
-    
-    @coarse_ranges.setter
-    def coarse_ranges(self, crs):
-        self.__coarse_ranges = crs
-
 
     @property
     def ranges(self) -> list[list | None]:

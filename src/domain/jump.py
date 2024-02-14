@@ -1,10 +1,8 @@
 import numpy as np
+from constants.jump_th import JUMP_THRESHOLD_MG
 from utilities.sig_proc_np import maxIndex, minIndex
 from utilities.sig_proc import cumtrapz
 from utilities.stat_tests import StatTests as ST
-
-JUMP_THRESHOLD_MG = 600
-"""The static low mG threshold to trigger jump identification."""
 
 class Jump:
     def __init__(self,
