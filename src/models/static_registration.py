@@ -1,4 +1,5 @@
 import numpy as np
+from constants.stillness_th import EULER_DEG_NORM_STILLNESS_TH, MG_STILLNESS_TH
 from domain.registration import Registration
 from models.imu import IMU
 from utilities.frames import convertToBootFrame
@@ -26,14 +27,11 @@ class StaticRegistration:
 
 
     def testMotionForStillness(self, r):
-        euler_std_th = 5
-        mG_std_th = 200
-
         # TODO use a non processed signal instead of euler combined
         #  - ifft of raw gyro, accel
         return [
-            np.std(self.imu.euler_combined[r[0]:r[1]]) < euler_std_th,
-            np.std(self.mG[r[0]:r[1]]) < mG_std_th,
+            # np.std(self.imu.euler_combined[r[0]:r[1]]) < EULER_DEG_NORM_STILLNESS_TH,
+            np.std(self.mG[r[0]:r[1]]) < MG_STILLNESS_TH,
         ]
     
 
@@ -51,12 +49,13 @@ class StaticRegistration:
             return still_ranges
         
         if print_out:
-            print('search:', search)
-            print('coarse_mult:', coarse_mult)
-            print('fine_mult:', fine_mult)
+            print('Computing fine search for still range')
+            # print('search:', search)
+            # print('coarse_mult:', coarse_mult)
+            # print('fine_mult:', fine_mult)
 
         for i in range(search):
-            if print_out: print('i iter:\t', i)
+            # if print_out: print('i iter:\t', i)
             for j in range(search):
                 # coarse search
                 head = prev_tail + coarse_mult * j
@@ -68,10 +67,10 @@ class StaticRegistration:
                 
                 trailing_tests = self.testMotionForStillness([head, tail])
 
-                if print_out: print('\tj iter:\t', j)
-                if print_out: print('\thead = prev_tail + coarse_mult * j:\t', head, '=', prev_tail, '+', coarse_mult * j)
-                if print_out: print('\ttail = head + wsamples:\t', tail, '=', head, '+', wsamples)
-                if print_out: print('\tstill_tests:\t', trailing_tests)
+                # if print_out: print('\tj iter:\t', j)
+                # if print_out: print('\thead = prev_tail + coarse_mult * j:\t', head, '=', prev_tail, '+', coarse_mult * j)
+                # if print_out: print('\ttail = head + wsamples:\t', tail, '=', head, '+', wsamples)
+                # if print_out: print('\tstill_tests:\t', trailing_tests)
                 
                 if sum(trailing_tests) == len(trailing_tests):
                     if print_out: print('\t\tcoarse range found:\t', head, tail)
@@ -84,12 +83,12 @@ class StaticRegistration:
                         fine_trailing_head = head + fine_mult * (k + 1)
                         fine_trailing_tail = tail + fine_mult * (k + 1)
 
-                        if print_out: 
-                            print('\t\tk iter:\t', k)
-                            print('\t\tfine_leading_head = head - fine_mult * k + 1:\t', fine_leading_head, '=', head, '-', fine_mult, '*', (k + 1))
-                            print('\t\tfine_leading_tail = tail - fine_mult * k + 1:\t', fine_leading_tail, '=', tail, '-', fine_mult, '*', (k + 1))
-                            print('\t\tfine_trailing_head = head + fine_mult * k + 1:\t', fine_trailing_head, '=', head, '+', fine_mult, '*', (k + 1))
-                            print('\t\tfine_trailing_tail = tail + fine_mult * k + 1:\t', fine_trailing_tail, '=', tail, '+', fine_mult, '*', (k + 1))
+                        # if print_out: 
+                        #     print('\t\tk iter:\t', k)
+                        #     print('\t\tfine_leading_head = head - fine_mult * k + 1:\t', fine_leading_head, '=', head, '-', fine_mult, '*', (k + 1))
+                        #     print('\t\tfine_leading_tail = tail - fine_mult * k + 1:\t', fine_leading_tail, '=', tail, '-', fine_mult, '*', (k + 1))
+                        #     print('\t\tfine_trailing_head = head + fine_mult * k + 1:\t', fine_trailing_head, '=', head, '+', fine_mult, '*', (k + 1))
+                        #     print('\t\tfine_trailing_tail = tail + fine_mult * k + 1:\t', fine_trailing_tail, '=', tail, '+', fine_mult, '*', (k + 1))
 
                         if refinedHead is None:
                             if fine_leading_head <= r[0]:

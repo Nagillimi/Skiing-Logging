@@ -1,24 +1,25 @@
 import numpy as np
 from constants.jump_th import JUMP_THRESHOLD_MG
+from domain.evaluated_kinematics import EvaluatedKinematics
 from domain.g_force import GForce
 from utilities.sig_proc_np import maxIndex, minIndex
 from utilities.sig_proc import cumtrapz
 from utilities.stat_tests import StatTests as ST
 
-class Jump:
-    def __init__(self,
+class Jump(EvaluatedKinematics):
+    def __init__(
+            self,
             lowG_range: np.ndarray,
             g_force: GForce,
             gyro: np.ndarray,
             print_out=False
     ) -> None:
+        super().__init__()
+
         self.lowG_range = lowG_range
         self.mG_lpf = g_force.mG_lpf
         self.mG = g_force.mG
         self.gyro = gyro
-        self.confidence = 0.
-        self.tests_passed = 0
-        self.total_tests = 0
 
         self.identify(print_out=print_out)
 
@@ -106,15 +107,15 @@ class Jump:
         if print_out: print('landing_range:\t', self.landing_range)
     
 
-    def runTestSuite(self, print_out=False) -> np.ndarray:
+    def testSuite(self, print_out=False) -> np.ndarray:
         """Run the test suite. Can toggle individual running here.
         
         In the future, can return values and parameters for each test. For ML
         """
         return np.array([
             ST.testDecreasingTrend(self.mG_lpf, self.air_range, print_out=print_out, header='Test mG_lpf has decreasing trend'),
-            ST.testMinSampleCount(self.mG_lpf, self.air_range, print_out=print_out, header='Test mG_lpf has minimum sample count'),
-            ST.testMinSampleCount(self.mG_lpf, self.lowG_range, min_count=10, print_out=print_out, header='Test mG_lpf has minimum samples below lowG threshold'),
+            ST.testMinSampleCount(self.air_range, print_out=print_out, header='Test mG_lpf has minimum sample count'),
+            ST.testMinSampleCount(self.lowG_range, min_count=10, print_out=print_out, header='Test mG_lpf has minimum samples below lowG threshold'),
             ST.testLowerSampleStdDev(self.mG, self.air_range, print_out=print_out, header='Test mG std dev (air time < pop)'),
             ST.testLowerSampleStdDev(self.gyro, self.air_range, print_out=print_out, header='Test gyro std dev (air time < pop)'),
             ST.testLowerSampleMean(self.mG, self.air_range, print_out=print_out, header='Test mG mean (air time < pop)'),
@@ -127,21 +128,9 @@ class Jump:
             ST.testLargerSampleStdDev(self.gyro, self.landing_range, print_out=print_out, header='Test gyro std dev (landing time > pop)'),
             ST.testLargerSampleMean(self.mG, self.landing_range, print_out=print_out, header='Test mG mean (landing time > pop)'),
             ST.testLargerSampleMean(self.gyro, self.landing_range, print_out=print_out, header='Test gyro mean (landing time > pop)'),
-            ST.testLargeImpulse(self.mG, self.air_range, print_out=print_out, header='Test landing time mG contains large impulse > (3 * std dev)'),
-            ST.testTimingOfLargeImpulse(self.mG, self.landing_range, print_out=print_out, header='Test that large impulse occurs close to landing time'),
+            ST.testLargestMagnitude(self.mG, self.air_range, print_out=print_out, header='Test landing time mG contains large impulse > (3 * std dev)'),
+            ST.testTimingOfMagnitude(self.mG, self.landing_range, print_out=print_out, header='Test that large impulse occurs close to landing time'),
         ])
-    
-
-    def test(self, print_out=False):
-        """Runs the internal test suite to determine the confidence value of the jump identification.
-        Currently, all tests are weighted equally.
-        
-        Returns the number of tests passed, total tests, and the confidence value in %.
-        """
-        results = self.runTestSuite(print_out=print_out)
-        self.tests_passed = np.sum(results)
-        self.total_tests = results.shape[0]
-        self.confidence = self.tests_passed / self.total_tests * 100
     
     
     def identify(self, print_out=False):
@@ -149,5 +138,5 @@ class Jump:
         self.computeMinIndex(print_out=print_out)
         self.computeAirPhase(print_out=print_out)
         self.computeLandingPhase(print_out=print_out)
-        self.test(print_out=print_out)
+        self.test(self.testSuite, print_out=print_out)
     

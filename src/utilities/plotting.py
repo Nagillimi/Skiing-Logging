@@ -103,8 +103,8 @@ def plotJumpAnalysis(tile: Tile, jump_idx: int, run_number=1):
     min_i = jump.min_idx
     air_r = jump.air_range
     landing_r = jump.landing_range
-    mg_raw = tile.mG
-    mg_filt = tile.mG_lpf
+    mg_raw = tile.g_force.mG
+    mg_filt = tile.g_force.mG_lpf
     gyro = tile.gyro_v
 
     # plot indices
@@ -153,7 +153,7 @@ def plotTileWithStillZones(tile: Tile, r=[0, -1]):
             ax.axvspan(t[range[0]], t[range[1]], color=_color, alpha=0.25)
 
     fine_rs = [r for r in tile.static_registration.ranges if r is not None]
-    coarse_rs = tile.static_registration.coarse_ranges
+    coarse_rs = tile.peak_idxs.tolist()
     t = tile.time[r[0]:r[1]]
     euler = tile.imu.euler[r[0]:r[1], :]
 
@@ -183,7 +183,7 @@ def plotTileWithStillZones(tile: Tile, r=[0, -1]):
     ax[3].set_title('All Tile Yaw with Still Zones', wrap=True)
     ax[3].legend()
 
-    ax[4].plot(t, tile.mG[r[0]:r[1]])
+    ax[4].plot(t, tile.g_force.mG[r[0]:r[1]])
     addStillZones(ax[4], tile.time, fine_rs, r)
     if coarse_rs is not None: addStillZones(ax[4], tile.time, coarse_rs, r, 'red')
     ax[4].set_title('All Tile Unfiltered mG-forces with Still Zones', wrap=True)
@@ -194,7 +194,7 @@ def plotTileWithStillZones(tile: Tile, r=[0, -1]):
 
 
 def plotAllTileRegistationZones(tile: Tile, r=[0, -1]):
-    coarse_rs = tile.static_registration.coarse_ranges
+    coarse_rs = tile.peak_idxs.tolist()
 
     _ = plotTileWithStillZones(tile, r=r)
     brackets = [[r[0]-3000, r[1]+3000] for r in coarse_rs]
@@ -216,7 +216,7 @@ def plotEulerAnalysis(tile: Tile, r=[0, -1]):
         ax.axhline(y=-180, color='k', linestyle='--')
 
     fine_rs = [r for r in tile.static_registration.ranges if r is not None]
-    coarse_rs = tile.static_registration.coarse_ranges
+    coarse_rs = tile.peak_idxs.tolist()
     t = tile.time[r[0]:r[1]]
 
 
@@ -282,7 +282,6 @@ def plotAllTileEulerAnalyses(tile: Tile, r=[0, -1]):
     brackets = [[r[1], r[1]+10000] for r in tile.static_registration.ranges]
     if len(brackets) > 0:
         for i, bracket in enumerate(brackets):
-            print('Orientation offset in boot frame:', quatToEuler(tile.q_offset_bf[i + 1]))
             _ = plotEulerAnalysis(tile, r=bracket)
 
 
@@ -301,9 +300,8 @@ def plotSensorBootEuler(tile: Tile, r=[0, -1]):
         ax.axhline(y=-180, color='k', linestyle='--')
 
     fine_rs = [r for r in tile.static_registration.ranges if r is not None]
-    coarse_rs = tile.static_registration.coarse_ranges
+    coarse_rs = tile.peak_idxs.tolist()
     t = tile.time[r[0]:r[1]]
-
 
     boot_quat = tile.boot_quat[r[0]:r[1], :]
     boot_quat_euler = np.apply_along_axis(quatToEuler, 1, boot_quat)
@@ -359,7 +357,7 @@ def plotAllSensorBootEuler(tile: Tile, r=[0, -1]):
 
 
 def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
-    def addVerticalLines(ax, t, override_rrs=None, _color='k', _label=''):
+    def addVerticalLines(ax, t, override_rrs=None, _color='k'):
         for i, rr in enumerate(rrs if override_rrs is None else override_rrs):
             if t[rr] < t[r[0]] or t[rr] > t[r[1]]: 
                 continue
@@ -367,7 +365,6 @@ def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
                 t[rr],
                 color=_color,
                 linestyle='--' if override_rrs is None else '-',
-                label=_label if i == 0 else None
             )
 
     def addRunZones(ax, t):
@@ -379,9 +376,9 @@ def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
     euler = np.apply_along_axis(quatToEuler, 1, tile.boot_quat[r[0]:r[1], :])
 
     highG_idxs = [turn.highG_idx for turn in tile.turns]
-    baseline_idxs = [turn.baseline_idx for turn in tile.turns]
-    max_roll_idxs = [turn.max_roll_idx for turn in tile.turns]
-    min_dF_dt_idxs = [turn.min_dF_dt_idx for turn in tile.turns]
+    baseline_idxs = [turn.baseline_idx_1 for turn in tile.turns]
+    max_roll_idxs = [turn.peak_roll_idx for turn in tile.turns]
+    min_dF_dt_idxs = [turn.baseline_idx_2 for turn in tile.turns]
 
     plt.rc('lines', linewidth=1)
     fig, ax = plt.subplots(8, figsize=(18, 18))
@@ -391,12 +388,11 @@ def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
     if rrs is not None:
         addVerticalLines(ax[0], tile.time)
     else:
-        addVerticalLines(ax[0], tile.time, highG_idxs, 'r', 'high G')
-        addVerticalLines(ax[0], tile.time, baseline_idxs, 'b', 'baseline')
-        addVerticalLines(ax[0], tile.time, max_roll_idxs, 'g', 'max roll')
-        addVerticalLines(ax[0], tile.time, min_dF_dt_idxs, 'y', 'min dF/ft')
+        addVerticalLines(ax[0], tile.time, highG_idxs, 'r')
+        addVerticalLines(ax[0], tile.time, baseline_idxs, 'b')
+        addVerticalLines(ax[0], tile.time, max_roll_idxs, 'g')
+        addVerticalLines(ax[0], tile.time, min_dF_dt_idxs, 'y')
     addRunZones(ax[0], tile.time)
-    ax[0].legend()
 
     ax[1].plot(t, euler[:, 0])
     ax[1].set_title('Boot Roll (Edge angle)', wrap=True)
@@ -404,12 +400,11 @@ def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
     if rrs is not None:
         addVerticalLines(ax[1], tile.time)
     else:
-        addVerticalLines(ax[1], tile.time, highG_idxs, 'r', 'high G')
-        addVerticalLines(ax[1], tile.time, baseline_idxs, 'b', 'baseline')
-        addVerticalLines(ax[1], tile.time, max_roll_idxs, 'g', 'max roll')
-        addVerticalLines(ax[1], tile.time, min_dF_dt_idxs, 'y', 'min dF/ft')
+        addVerticalLines(ax[1], tile.time, highG_idxs, 'r')
+        addVerticalLines(ax[1], tile.time, baseline_idxs, 'b')
+        addVerticalLines(ax[1], tile.time, max_roll_idxs, 'g')
+        addVerticalLines(ax[1], tile.time, min_dF_dt_idxs, 'y')
     addRunZones(ax[1], tile.time)
-    ax[1].legend()
 
     ax[2].plot(t, deriv(euler[:, 0], 0.01))
     ax[2].set_title('Boot Roll (Edge angle) 1st Deriv.', wrap=True)
@@ -417,12 +412,11 @@ def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
     if rrs is not None:
         addVerticalLines(ax[2], tile.time)
     else:
-        addVerticalLines(ax[2], tile.time, highG_idxs, 'r', 'high G')
-        addVerticalLines(ax[2], tile.time, baseline_idxs, 'b', 'baseline')
-        addVerticalLines(ax[2], tile.time, max_roll_idxs, 'g', 'max roll')
-        addVerticalLines(ax[2], tile.time, min_dF_dt_idxs, 'y', 'min dF/ft')
+        addVerticalLines(ax[2], tile.time, highG_idxs, 'r')
+        addVerticalLines(ax[2], tile.time, baseline_idxs, 'b')
+        addVerticalLines(ax[2], tile.time, max_roll_idxs, 'g')
+        addVerticalLines(ax[2], tile.time, min_dF_dt_idxs, 'y')
     addRunZones(ax[2], tile.time)
-    ax[2].legend()
 
     ax[3].plot(t, euler[:, 1])
     ax[3].set_title('Boot Pitch (Flex angle)', wrap=True)
@@ -430,36 +424,33 @@ def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
     if rrs is not None:
         addVerticalLines(ax[3], tile.time)
     else:
-        addVerticalLines(ax[3], tile.time, highG_idxs, 'r', 'high G')
-        addVerticalLines(ax[3], tile.time, baseline_idxs, 'b', 'baseline')
-        addVerticalLines(ax[3], tile.time, max_roll_idxs, 'g', 'max roll')
-        addVerticalLines(ax[3], tile.time, min_dF_dt_idxs, 'y', 'min dF/ft')
+        addVerticalLines(ax[3], tile.time, highG_idxs, 'r')
+        addVerticalLines(ax[3], tile.time, baseline_idxs, 'b')
+        addVerticalLines(ax[3], tile.time, max_roll_idxs, 'g')
+        addVerticalLines(ax[3], tile.time, min_dF_dt_idxs, 'y')
     addRunZones(ax[3], tile.time)
-    ax[3].legend()
 
     ax[4].plot(t, euler[:, 2])
     ax[4].set_title('Boot Yaw (Heading)', wrap=True)
     if rrs is not None:
         addVerticalLines(ax[4], tile.time)
     else:
-        addVerticalLines(ax[4], tile.time, highG_idxs, 'r', 'high G')
-        addVerticalLines(ax[4], tile.time, baseline_idxs, 'b', 'baseline')
-        addVerticalLines(ax[4], tile.time, max_roll_idxs, 'g', 'max roll')
-        addVerticalLines(ax[4], tile.time, min_dF_dt_idxs, 'y', 'min dF/ft')
+        addVerticalLines(ax[4], tile.time, highG_idxs, 'r')
+        addVerticalLines(ax[4], tile.time, baseline_idxs, 'b')
+        addVerticalLines(ax[4], tile.time, max_roll_idxs, 'g')
+        addVerticalLines(ax[4], tile.time, min_dF_dt_idxs, 'y')
     addRunZones(ax[4], tile.time)
-    ax[4].legend()
 
     ax[5].plot(t, tile.g_force.mG_lpf[r[0]:r[1]])
     ax[5].set_title('Tile Filtered mG-forces', wrap=True)
     if rrs is not None:
         addVerticalLines(ax[5], tile.time)
     else:
-        addVerticalLines(ax[5], tile.time, highG_idxs, 'r', 'high G')
-        addVerticalLines(ax[5], tile.time, baseline_idxs, 'b', 'baseline')
-        addVerticalLines(ax[5], tile.time, max_roll_idxs, 'g', 'max roll')
-        addVerticalLines(ax[5], tile.time, min_dF_dt_idxs, 'y', 'min dF/ft')
+        addVerticalLines(ax[5], tile.time, highG_idxs, 'r')
+        addVerticalLines(ax[5], tile.time, baseline_idxs, 'b')
+        addVerticalLines(ax[5], tile.time, max_roll_idxs, 'g')
+        addVerticalLines(ax[5], tile.time, min_dF_dt_idxs, 'y')
     addRunZones(ax[5], tile.time)
-    ax[5].legend()
 
     ax[6].plot(t, tile.g_force.d_mG_lpf_dt[r[0]:r[1]])
     ax[6].set_title('Tile Filtered mG-forces 1st Deriv.', wrap=True)
@@ -467,12 +458,11 @@ def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
     if rrs is not None:
         addVerticalLines(ax[6], tile.time)
     else:
-        addVerticalLines(ax[6], tile.time, highG_idxs, 'r', 'high G')
-        addVerticalLines(ax[6], tile.time, baseline_idxs, 'b', 'baseline')
-        addVerticalLines(ax[6], tile.time, max_roll_idxs, 'g', 'max roll')
-        addVerticalLines(ax[6], tile.time, min_dF_dt_idxs, 'y', 'min dF/ft')
+        addVerticalLines(ax[6], tile.time, highG_idxs, 'r')
+        addVerticalLines(ax[6], tile.time, baseline_idxs, 'b')
+        addVerticalLines(ax[6], tile.time, max_roll_idxs, 'g')
+        addVerticalLines(ax[6], tile.time, min_dF_dt_idxs, 'y')
     addRunZones(ax[6], tile.time)
-    ax[6].legend()
 
     ax[7].plot(t, tile.g_force.d2_mG_lpf_dt2[r[0]:r[1]])
     ax[7].set_title('Tile Filtered mG-forces 2nd Deriv.', wrap=True)
@@ -480,12 +470,11 @@ def plotTurnAnalysis(tile: Tile, rrs=None, r=[0, -1]):
     if rrs is not None:
         addVerticalLines(ax[7], tile.time)
     else:
-        addVerticalLines(ax[7], tile.time, highG_idxs, 'r', 'high G')
-        addVerticalLines(ax[7], tile.time, baseline_idxs, 'b', 'baseline')
-        addVerticalLines(ax[7], tile.time, max_roll_idxs, 'g', 'max roll')
-        addVerticalLines(ax[7], tile.time, min_dF_dt_idxs, 'y', 'min dF/ft')
+        addVerticalLines(ax[7], tile.time, highG_idxs, 'r')
+        addVerticalLines(ax[7], tile.time, baseline_idxs, 'b')
+        addVerticalLines(ax[7], tile.time, max_roll_idxs, 'g')
+        addVerticalLines(ax[7], tile.time, min_dF_dt_idxs, 'y')
     addRunZones(ax[7], tile.time)
-    ax[7].legend()
 
     plt.tight_layout()
     plt.show()
@@ -498,6 +487,100 @@ def plotAllTurnAnalyses(tile: Tile, rrs=None, r=[0, -1]):
     if len(brackets) > 0:
         for bracket in brackets:
             _ = plotTurnAnalysis(tile, rrs=rrs, r=bracket)
+
+
+def plotTurnBaselineAnalysis(tile: Tile, r=[0, -1]):
+    def addVerticalLines(ax, t, rrs, _color='k'):
+        for rr in rrs:
+            if t[rr] < t[r[0]] or t[rr] > t[r[1]]: 
+                continue
+            ax.axvline(t[rr], color=_color, linestyle='--')
+
+    t = tile.time[r[0]:r[1]]
+    euler = np.apply_along_axis(quatToEuler, 1, tile.boot_quat[r[0]:r[1], :])
+
+    baseline_idxs_1 = [turn.baseline_idx_1 for turn in tile.turns]
+    baseline_idxs_2 = [turn.baseline_idx_2 for turn in tile.turns]
+    baseline_idxs_3 = [turn.baseline_idx_3 for turn in tile.turns]
+    baseline_idxs_4 = [turn.baseline_idx_4 for turn in tile.turns]
+    baseline_idxs_5 = [turn.baseline_idx_5 for turn in tile.turns]
+
+    plt.rc('lines', linewidth=1)
+    fig, ax = plt.subplots(8, figsize=(18, 18))
+
+    ax[0].plot(t, tile.alt_lpf[r[0]:r[1]])
+    ax[0].set_title('Tile (lpf) Altitude', wrap=True)
+    addVerticalLines(ax[0], tile.time, baseline_idxs_1, 'r')
+    addVerticalLines(ax[0], tile.time, baseline_idxs_2, 'b')
+    addVerticalLines(ax[0], tile.time, baseline_idxs_3, 'g')
+    addVerticalLines(ax[0], tile.time, baseline_idxs_4, 'y')
+    addVerticalLines(ax[0], tile.time, baseline_idxs_5, 'm')
+
+    ax[1].plot(t, euler[:, 0])
+    ax[1].set_title('Boot Roll (Edge angle)', wrap=True)
+    ax[1].axhline(0, color='k', linestyle='--')
+    addVerticalLines(ax[1], tile.time, baseline_idxs_1, 'r')
+    addVerticalLines(ax[1], tile.time, baseline_idxs_2, 'b')
+    addVerticalLines(ax[1], tile.time, baseline_idxs_3, 'g')
+    addVerticalLines(ax[1], tile.time, baseline_idxs_4, 'y')
+    addVerticalLines(ax[1], tile.time, baseline_idxs_5, 'm')
+
+    ax[2].plot(t, deriv(euler[:, 0], 0.01))
+    ax[2].set_title('Boot Roll (Edge angle) 1st Deriv.', wrap=True)
+    ax[2].axhline(0, color='k', linestyle='--')
+    addVerticalLines(ax[2], tile.time, baseline_idxs_1, 'r')
+    addVerticalLines(ax[2], tile.time, baseline_idxs_2, 'b')
+    addVerticalLines(ax[2], tile.time, baseline_idxs_3, 'g')
+    addVerticalLines(ax[2], tile.time, baseline_idxs_4, 'y')
+    addVerticalLines(ax[2], tile.time, baseline_idxs_5, 'm')
+
+    ax[3].plot(t, euler[:, 1])
+    ax[3].set_title('Boot Pitch (Flex angle)', wrap=True)
+    ax[3].axhline(0, color='k', linestyle='--')
+    addVerticalLines(ax[3], tile.time, baseline_idxs_1, 'r')
+    addVerticalLines(ax[3], tile.time, baseline_idxs_2, 'b')
+    addVerticalLines(ax[3], tile.time, baseline_idxs_3, 'g')
+    addVerticalLines(ax[3], tile.time, baseline_idxs_4, 'y')
+    addVerticalLines(ax[3], tile.time, baseline_idxs_5, 'm')
+
+    ax[4].plot(t, euler[:, 2])
+    ax[4].set_title('Boot Yaw (Heading)', wrap=True)
+    addVerticalLines(ax[4], tile.time, baseline_idxs_1, 'r')
+    addVerticalLines(ax[4], tile.time, baseline_idxs_2, 'b')
+    addVerticalLines(ax[4], tile.time, baseline_idxs_3, 'g')
+    addVerticalLines(ax[4], tile.time, baseline_idxs_4, 'y')
+    addVerticalLines(ax[4], tile.time, baseline_idxs_5, 'm')
+
+    ax[5].plot(t, tile.g_force.mG_lpf[r[0]:r[1]])
+    ax[5].set_title('Tile Filtered mG-forces', wrap=True)
+    addVerticalLines(ax[5], tile.time, baseline_idxs_1, 'r')
+    addVerticalLines(ax[5], tile.time, baseline_idxs_2, 'b')
+    addVerticalLines(ax[5], tile.time, baseline_idxs_3, 'g')
+    addVerticalLines(ax[5], tile.time, baseline_idxs_4, 'y')
+    addVerticalLines(ax[5], tile.time, baseline_idxs_5, 'm')
+
+    ax[6].plot(t, tile.g_force.d_mG_lpf_dt[r[0]:r[1]])
+    ax[6].set_title('Tile Filtered mG-forces 1st Deriv.', wrap=True)
+    ax[6].axhline(0, color='k', linestyle='--')
+    addVerticalLines(ax[6], tile.time, baseline_idxs_1, 'r')
+    addVerticalLines(ax[6], tile.time, baseline_idxs_2, 'b')
+    addVerticalLines(ax[6], tile.time, baseline_idxs_3, 'g')
+    addVerticalLines(ax[6], tile.time, baseline_idxs_4, 'y')
+    addVerticalLines(ax[6], tile.time, baseline_idxs_5, 'm')
+
+    ax[7].plot(t, tile.g_force.d2_mG_lpf_dt2[r[0]:r[1]])
+    ax[7].set_title('Tile Filtered mG-forces 2nd Deriv.', wrap=True)
+    ax[7].axhline(0, color='k', linestyle='--')
+    addVerticalLines(ax[7], tile.time, baseline_idxs_1, 'r')
+    addVerticalLines(ax[7], tile.time, baseline_idxs_2, 'b')
+    addVerticalLines(ax[7], tile.time, baseline_idxs_3, 'g')
+    addVerticalLines(ax[7], tile.time, baseline_idxs_4, 'y')
+    addVerticalLines(ax[7], tile.time, baseline_idxs_5, 'm')
+
+    plt.tight_layout()
+    plt.show()
+    return fig
+
 
 
 def plotRunGeographyAnalysis(tile: Tile, r=[0, -1]):
@@ -556,7 +639,7 @@ def plotRunGeographyAnalysis(tile: Tile, r=[0, -1]):
     addKeyGeographicalZones(ax[3], tile.time)
     ax[3].set_title('Tile Yaw with Still Zones', wrap=True)
 
-    ax[4].plot(t, tile.mG_lpf[r[0]:r[1]])
+    ax[4].plot(t, tile.g_force.mG_lpf[r[0]:r[1]])
     addKeyGeographicalPts(ax[4], tile.time)
     addKeyGeographicalZones(ax[4], tile.time)
     ax[4].set_title('Tile Filtered mG Forces with Still Zones', wrap=True)

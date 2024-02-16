@@ -19,7 +19,6 @@ class IMU:
             accel_reject=10,
             mag_reject=10,
             recovery_period_s=5,
-            cts=True,
             print_out=False,
         ) -> None:
         """Initializes the IMU object and performs the orientation calculations based on the amount
@@ -33,10 +32,6 @@ class IMU:
         g = gyro / 1000
         m = mag / 10 if mag is not None else None
 
-        # a = self.convertToBootFrame(accel) / 1000
-        # g = self.convertToBootFrame(gyro) / 1000
-        # m = self.convertToBootFrame(mag) / 10 if mag is not None else None
-
         self.offset = imufusion.Offset(fs)
         self.ahrs = imufusion.Ahrs()
         self.fs = fs
@@ -49,7 +44,7 @@ class IMU:
             recovery_period_s * fs,
         )
         self.computeOrientation(a, g, m, print_out=print_out)
-        self.computeEuler(cts=cts, print_out=print_out)
+        self.computeEuler(print_out=print_out)
 
 
     def convertToBootFrame(self, x: np.ndarray) -> np.ndarray:
@@ -75,29 +70,31 @@ class IMU:
             self.quat[i] = [q.w, q.x, q.y, q.z]
     
 
-    # https://github.com/xioTechnologies/Fusion/blob/58f9d2e01be0fcda37ebb1af35c7fc09a5dcbeff/Fusion/FusionMath.h#L466
-    def computeEuler(self, cts=True, print_out=False):
-        """Gets the euler data from the orientatio quaternion, 
-        assuming yaw data in a continuous range otherwise set `cts_yaw` to False.
+    def computeEuler(self, print_out=False):
+        """Computes the clamped euler data based on the orientation quaternion in the sensor frame.
+
+        Also computes the euler norm (based on clamped signals), for external algorithm use.
         """
         if print_out: print('Translating orientation into euler data for', self)
-        euler = np.apply_along_axis(quatToEuler, 1, self.quat)
-        self.euler_combined = np.linalg.norm(euler, axis=1)
-        self.euler = makeContinuousRange3dof(
-            euler,
-            fix_0=cts,
-            fix_1=cts,
-            fix_2=cts,
-            print_out=print_out
-        )
-        if print_out: print('Converted euler data into continuous range.')
+        self.euler = np.apply_along_axis(quatToEuler, 1, self.quat)
+        self.euler_combined = np.linalg.norm(self.euler, axis=1)
 
 
     @property
-    def euler(self) -> np.ndarray:
-        """Euler data based on the orientation quaternion, yaw is by default unclamped.
+    def cts_euler(self) -> np.ndarray:
+        """Continuous (unclamped) euler data based on the orientation quaternion. No attached setter,
+        since this is assumed to only be used in prototyping situation and will be deprecated.
         
-        If you want clamped yaw data, use `getClampedEuler()`
+        `** Watch out- this getter is inherently very slow! **`
+        """
+        return makeContinuousRange3dof(self.euler, print_out=True)
+    
+
+    @property
+    def euler(self) -> np.ndarray:
+        """Euler data based on the orientation quaternion, clamped.
+        
+        If you want clamped yaw data, use `cts_euler`
         """
         return self.__euler
     

@@ -9,7 +9,7 @@ class StatTests:
         if not x.ndim == 1:
             return x, False
         window = x[r[0]:r[1]]
-        if not window.shape[0] > 0:
+        if window.shape[0] <= 0:
             return window, False
         return window, True
 
@@ -56,12 +56,8 @@ class StatTests:
 
     @printTestResults
     @staticmethod
-    def testMinSampleCount(x: np.ndarray, r: list, min_count=50, print_out=False, header=""):
-        window, isValid = StatTests.assertWindow(x, r)
-        if not isValid:
-            return False
-        
-        samples = window.shape[0]
+    def testMinSampleCount(r: list, min_count=50, print_out=False, header=""):
+        samples = r[1] - r[0]
         if print_out: print('\t', samples, ' >= ', min_count, '?', sep='')
         if samples >= min_count: 
             return True
@@ -142,7 +138,7 @@ class StatTests:
 
     @printTestResults
     @staticmethod
-    def testLargeImpulse(x: np.ndarray, r: list, override_max=None, th=None, print_out=False, header=""):
+    def testLargestMagnitude(x: np.ndarray, r: list, override_max=None, th=None, print_out=False, header=""):
         """tests the input `x` signal whether a large impulse occured during the range `r`.
         
         `th` will override the threshold of the impulse magnitude test, defaults to 3 * stddev
@@ -161,7 +157,26 @@ class StatTests:
 
     @printTestResults
     @staticmethod
-    def testTimingOfLargeImpulse(x: np.ndarray, r: list, th=None, print_out=False, header=""):
+    def testSmallestMagnitude(x: np.ndarray, r: list, th=None, print_out=False, header=""):
+        """tests the input `x` signal whether a small magnitude occured during the range `r`.
+        
+        `th` will override the threshold of the impulse magnitude test, defaults to (1 / 3) * stddev
+        """
+        window, isValid = StatTests.assertWindow(x, r)
+        if not isValid:
+            return False
+        
+        baseline = (1 / 3) * np.std(window) if th is None else th
+        smallest_mag = np.min(window)
+        if print_out: print('\t', smallest_mag, ' < ', baseline, '?', sep='')
+        if smallest_mag > baseline:
+            return True
+        return False
+
+
+    @printTestResults
+    @staticmethod
+    def testTimingOfMagnitude(x: np.ndarray, r: list, th=None, print_out=False, header=""):
         """tests the input `x` signal whether a large impulse occured close to the start of the landing range.
         
         `th` will override the threshold of the impulse magnitude test, defaults to 3 * stddev
@@ -174,5 +189,25 @@ class StatTests:
         impulse_idx = maxIndex(window) + 1
         if print_out: print('\t', impulse_idx, ' < ', min_samples, '?', sep='')
         if impulse_idx < min_samples:
+            return True
+        return False
+
+
+    @printTestResults
+    @staticmethod
+    def testRecentMax(x: np.ndarray, r: list, th=None, print_out=False, header=""):
+        """tests the input `x` signal whether a large impulse occured close to the start of the landing range.
+        
+        `th` will override the threshold of the impulse magnitude test, defaults to 3 * stddev
+        """
+        window, isValid = StatTests.assertWindow(x, r)
+        if not isValid:
+            return False
+
+        L = window.shape[0]
+        min_samples = 20 if th is None else th
+        max_idx = maxIndex(window) + 1
+        if print_out: print('\t', L, ' - ', max_idx, ' < ', min_samples, '?', sep='')
+        if L - max_idx < min_samples:
             return True
         return False

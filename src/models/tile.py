@@ -1,5 +1,6 @@
 import numpy as np
 from constants.jump_th import JUMP_THRESHOLD_MG
+from constants.turn_th import D_MG_LPF_DT_TH
 from domain.devices.raw_tile import RawTile
 from domain.devices.track import Track
 from domain.g_force import GForce
@@ -9,9 +10,9 @@ from models.static_registration import StaticRegistration
 from models.imu import IMU
 from models.turn import Turn
 from utilities.frames import convertToBootFrame
-from utilities.sig_proc_np import deriv, identifyLTThInsideRanges, length, lowpass, lowpass, zeroCrossingIdxsGTThInsideRanges
+from utilities.sig_proc_np import identifyLTThInsideRanges, length, lowpass, lowpass, zeroCrossingIdxsGTThInsideRanges
 from utilities.sync import identifyOffsets
-from utilities.quat import euler2DNormFromQuat, quatMult, quatToEuler
+from utilities.quat import quatMult
 
 class Tile:
     def __init__(
@@ -23,6 +24,10 @@ class Tile:
     ):
         self.time = raw.time / 1000
         self.constructProcessedSignals(raw, prefer_9dof, print_out)
+
+        if not compute_kinematics:
+            return
+        
         self.identifyGeographicalPoints(print_out=print_out)
         self.identifyJumps(print_out=print_out)
         self.identifyStaticRegistrations(print_out=print_out)
@@ -128,12 +133,12 @@ class Tile:
         registrations (if any pass the tests!)
         """
         self.static_registration = StaticRegistration(
-            self.peak_idxs,
-            self.time,
-            self.alt_lpf,
-            self.g_force.mG,
-            self.imu,
-            print_out
+            peak_idxs=self.peak_idxs,
+            time=self.time,
+            alt_lpf=self.alt_lpf,
+            mG=self.g_force.mG,
+            imu=self.imu,
+            print_out=print_out,
         )
 
 
@@ -143,6 +148,9 @@ class Tile:
 
         Store with an attached timestamp, so that the system computes boot orientations based on new
         registrations (if any pass the tests!)
+
+        May not need, since the ski angles are computed wrt to a baseline. Unless, you need the baselines
+        elsewhere!
         """
 
 
@@ -163,18 +171,15 @@ class Tile:
                 self.static_registration.getMostRecentRegistrationQuat(self.time[i])
             )
 
-        self.boot_euler_combined = np.apply_along_axis(euler2DNormFromQuat, 1, self.boot_quat)
-        self.d_boot_euler_combined_dt = deriv(self.boot_euler_combined, 0.01)
-
         if print_out:
             print('Transformed sensor orientation into boot frame using the list of static registrations.')
 
 
     def identifyTurns(self, print_out=False):
         """Identify all turn-based kinematics."""
-        highG_els = zeroCrossingIdxsGTThInsideRanges(self.g_force.d_mG_lpf_dt, 0.25, self.downhill_idxs)
+        highG_els = zeroCrossingIdxsGTThInsideRanges(self.g_force.d_mG_lpf_dt, D_MG_LPF_DT_TH, self.downhill_idxs)
         self.turns = [
-            Turn(highG_els[idx], self.g_force, self.boot_quat, print_out)
+            Turn(highG_els[idx], self.alt_lpf, self.g_force, self.boot_quat, print_out)
             for idx in range(highG_els.shape[0])
         ]
 
