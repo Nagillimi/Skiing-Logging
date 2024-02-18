@@ -8,12 +8,12 @@ class EvaluatedKinematics:
         self.total_tests = 0
 
 
-    def test(self, suite, print_out=False):
+    def test(self, suite):
         """Runs the child test suite to determine the confidence value of the specific kinematic estimation.
         
         Currently, all tests are weighted equally.
         """
-        results = suite(print_out=print_out)
+        results = suite()
         self.tests_passed = np.sum(results)
         self.total_tests = results.shape[0]
         self.confidence = self.tests_passed / self.total_tests * 100

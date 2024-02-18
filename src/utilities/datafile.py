@@ -41,7 +41,7 @@ SENSOR_BOOT_HEADER = 'time [s],alt_lpf [m],sensor_roll,sensor_pitch,sensor_yaw,'
     + '\n'
 
 
-def createDataFile(name, header):
+def createDataFile(name, header=""):
     """Creates a generic data file inside the `logs/` dir.
     
     Checks that the logs dir exists, if not creates it.
@@ -56,9 +56,9 @@ def createDataFile(name, header):
     if os.path.exists(os.path.join(os.getcwd().split('src')[0], 'logs/', name)):
         os.remove(os.path.join(os.getcwd().split('src')[0], 'logs/', name))
 
-    file_train = open(os.path.join(os.getcwd().split('src')[0], 'logs/', name), "w")
-    file_train.write(header)
-    return file_train
+    file = open(os.path.join(os.getcwd().split('src')[0], 'logs/', name), "w")
+    file.write(header)
+    return file
 
 
 def createJumpDataFile(name):

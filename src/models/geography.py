@@ -9,6 +9,7 @@ from domain.geography.geographical_tests import (
     MinAtBeginningOfPeriod,
     SlopeRangeGTTh,
 )
+from domain.session_logger import SessionLogger as logger
 
 
 class Geography:
@@ -16,13 +17,11 @@ class Geography:
             self,
             time: np.ndarray,
             alt_lpf: np.ndarray,
-            print_out=False,
         ) -> None:
         self.time = time
         self.alt_lpf = alt_lpf
 
-        if print_out:
-            print('Starting geographical identification, full idx range:', time.shape[0])
+        logger.debug(f'Starting geographical identification, full idx range: {time.shape[0]}')
 
         self.lift_bottom_search = GeographicalSearch(
             x=self.alt_lpf, 
@@ -64,15 +63,15 @@ class Geography:
             ],
         )
 
-        self.identify(print_out=print_out)
-        self.patchFragmentedTracks(print_out=print_out)
+        self.identify()
+        self.patchFragmentedTracks()
 
 
     def newGeographicalPoint(self, pt_type, idx) -> GeographicalPoint:
         return GeographicalPoint(pt_type, self.time[idx], idx, self.alt_lpf[idx])
 
 
-    def identify(self, print_out=False):
+    def identify(self):
         """All causal!
 
         TODO assumes a lift-first based resort
@@ -88,8 +87,7 @@ class Geography:
             latest_lift_bottom_idx = self.lift_bottom_search.search(min_idx=last_idx)
             if latest_lift_bottom_idx is None:
                 break
-            if print_out:
-                print('New geographical point identified | Lift bottom at idx:', latest_lift_bottom_idx)
+            logger.debug(f'New geographical point identified | Lift bottom at idx: {latest_lift_bottom_idx}')
             new_point = self.newGeographicalPoint('lb', latest_lift_bottom_idx)
             self.all_points.append(new_point)
             self.lift_bottoms.append(new_point)
@@ -98,8 +96,7 @@ class Geography:
             latest_lift_peak_idx = self.lift_peak_search.search(min_idx=latest_lift_bottom_idx)
             if latest_lift_peak_idx is None:
                 break
-            if print_out:
-                print('New geographical point identified | Lift peak at idx:', latest_lift_peak_idx)
+            logger.debug(f'New geographical point identified | Lift peak at idx: {latest_lift_peak_idx}')
             new_point = self.newGeographicalPoint('lp', latest_lift_peak_idx)
             self.all_points.append(new_point)
             self.lift_peaks.append(new_point)
@@ -108,8 +105,7 @@ class Geography:
             latest_run_peak_idx = self.run_peak_search.search(min_idx=latest_lift_peak_idx)
             if latest_run_peak_idx is None:
                 break
-            if print_out:
-                print('New geographical point identified | Run peak at idx:', latest_run_peak_idx)
+            logger.debug(f'New geographical point identified | Run peak at idx: {latest_run_peak_idx}')
             new_point = self.newGeographicalPoint('rp', latest_run_peak_idx)
             self.all_points.append(new_point)
             self.run_peaks.append(new_point)
@@ -118,30 +114,27 @@ class Geography:
             latest_run_bottom_idx = self.run_bottom_search.search(min_idx=latest_run_peak_idx)
             if latest_run_bottom_idx is None:
                 break
-            if print_out:
-                print('New geographical point identified | Run bottom at idx:', latest_run_bottom_idx)
+            logger.debug(f'New geographical point identified | Run bottom at idx: {latest_run_bottom_idx}')
             new_point = self.newGeographicalPoint('rb', latest_run_bottom_idx)
             self.all_points.append(new_point)
             self.run_bottoms.append(new_point)
 
             last_idx = latest_run_bottom_idx
 
-        if print_out:
-            print('Geographical identification finished.')
-            print('\tLift peaks:', len(self.lift_peaks))
-            print('\tLift bottoms:', len(self.lift_bottoms))
-            print('\tRun peaks:', len(self.run_peaks))
-            print('\tRun bottoms:', len(self.run_bottoms))
+            logger.debug(f'Geographical identification finished.')
+            logger.debug(f'\tLift peaks: {len(self.lift_peaks)}')
+            logger.debug(f'\tLift bottoms: {len(self.lift_bottoms)}')
+            logger.debug(f'\tRun peaks: {len(self.run_peaks)}')
+            logger.debug(f'\tRun bottoms: {len(self.run_bottoms)}')
 
 
-    def patchFragmentedTracks(self, print_out=False):
+    def patchFragmentedTracks(self):
         """Fix any situation where a:
         
         - lift bottom is followed by a lift peak
         - run bottom is followed by a run peak
         """
-        if print_out:
-            print('Correcting any fragmented tracks')
+        logger.debug(f'Correcting any fragmented tracks')
 
         if len(self.lift_bottoms) != len(self.lift_peaks) or len(self.run_bottoms) != len(self.run_peaks):
             fragments = []
@@ -154,14 +147,12 @@ class Geography:
                     fragments.append(self.lift_peaks.pop(self.run_bottoms.index(self.all_points[i])))
                     fragments.append(self.lift_peaks.pop(self.run_peaks.index(self.all_points[i + 1])))
 
-            if print_out:
-                print('Found and removed', len(fragments), 'fragmented tracks.')
+            logger.debug(f'Found and removed {len(fragments)} fragmented tracks.')
 
             self.all_points = list(set(self.all_points).symmetric_difference(fragments))
             return
     
-        if print_out:
-            print('No fragmented tracks found.')
+        logger.debug(f'No fragmented tracks found.')
                 
 
     @property

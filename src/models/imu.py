@@ -1,5 +1,6 @@
 import imufusion
 import numpy as np
+from domain.session_logger import SessionLogger as logger
 from utilities.quat import quatToEuler
 from utilities.sig_proc_np import makeContinuousRange3dof
 
@@ -19,7 +20,6 @@ class IMU:
             accel_reject=10,
             mag_reject=10,
             recovery_period_s=5,
-            print_out=False,
         ) -> None:
         """Initializes the IMU object and performs the orientation calculations based on the amount
         of data sent (6dof for accel/gyro, 9dof  +mag).
@@ -43,22 +43,22 @@ class IMU:
             mag_reject,
             recovery_period_s * fs,
         )
-        self.computeOrientation(a, g, m, print_out=print_out)
-        self.computeEuler(print_out=print_out)
+        self.computeOrientation(a, g, m)
+        self.computeEuler()
 
 
     def convertToBootFrame(self, x: np.ndarray) -> np.ndarray:
         return np.transpose([x[:, 1], -x[:, 2], -x[:, 0]])
 
 
-    def computeOrientation(self, a: np.ndarray, g: np.ndarray, m=None, print_out=False):
+    def computeOrientation(self, a: np.ndarray, g: np.ndarray, m=None):
         """Compute the orientation quaternion with the motion data.
         
         Computes either 6 or 9dof based depending on whether the mag was set.
         """
         N = a.shape[0]
         self.quat = np.empty((N, 4))
-        if print_out: print('Computing orientation for', self)
+        logger.debug(f'Computing orientation for {self}')
 
         for i in range(N):
             g[i] = self.offset.update(g[i])
@@ -70,12 +70,12 @@ class IMU:
             self.quat[i] = [q.w, q.x, q.y, q.z]
     
 
-    def computeEuler(self, print_out=False):
+    def computeEuler(self):
         """Computes the clamped euler data based on the orientation quaternion in the sensor frame.
 
         Also computes the euler norm (based on clamped signals), for external algorithm use.
         """
-        if print_out: print('Translating orientation into euler data for', self)
+        logger.debug(f'Translating orientation into euler data for {self}')
         self.euler = np.apply_along_axis(quatToEuler, 1, self.quat)
         self.euler_combined = np.linalg.norm(self.euler, axis=1)
 
@@ -87,7 +87,7 @@ class IMU:
         
         `** Watch out- this getter is inherently very slow! **`
         """
-        return makeContinuousRange3dof(self.euler, print_out=True)
+        return makeContinuousRange3dof(self.euler, debug_file=True)
     
 
     @property

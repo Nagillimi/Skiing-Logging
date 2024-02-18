@@ -1,12 +1,15 @@
 import datetime as dt
 import pandas as pd
-from utilities.decorators import printTracks
 from domain.devices.track import Track
+from domain.session_logger import SessionLogger as logger
+from utilities.decorators.print_tracks import printTracks
 
 
 @printTracks
-def decodeA50(file, print_out, header=''):
+def decodeA50(file, header=''):
     csv = pd.read_csv(file)
+    logger.info(f'Imported A50 data from csv, dimensions: {csv.size}')
+
     l = csv.loc[csv.iloc[:, 0].isnull()].index.to_list()
     nan_indices = [0] + l + [csv.shape[0]]
     tracks = []
@@ -50,10 +53,13 @@ def decodeA50(file, print_out, header=''):
             course=course
         )
         tracks.append(trackObj)
+
+    
+    logger.info(f'Decoded A50 data into {len(tracks)} tracks.')
     return tracks
 
 
 @printTracks
-def decodeA50Downhill(file, print_out, header=''):
-    tracks = decodeA50(file, print_out=print_out, header="")
+def decodeA50Downhill(file, header=''):
+    tracks = decodeA50(file, header="")
     return [track for track in tracks if track.track_type == "Downhill"]

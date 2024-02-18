@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import signal
+from domain.session_logger import SessionLogger as logger
 from utilities.sig_proc import makeContinuousRange
 
 def onlyIdxsInsideRanges(idxs: np.ndarray, ranges: np.ndarray) -> np.ndarray:
@@ -41,7 +42,7 @@ def deriv(x: np.ndarray, dt, lpf=True) -> np.ndarray:
     xw = x[2:-2]
     W = xw.shape[0]
     if W < 1:
-        print('Error calculating derivative. Signal not long enough, must be at least 5 elements.')
+        logger.error('Error calculating derivative. Signal not long enough, must be at least 5 elements.')
         return x
     
     one_twelfth_dt = 1 / (12 * dt)
@@ -99,15 +100,15 @@ def mae(x1: np.ndarray, x2: np.ndarray):
     return np.mean(np.abs(x1 - x2))
 
 
-def makeContinuousRange3dof(x: np.ndarray, fix_0=True, fix_1=True, fix_2=True, print_out=False):
+def makeContinuousRange3dof(x: np.ndarray, fix_0=True, fix_1=True, fix_2=True, debug_file=None):
     """Runs `fixZeroCrossing()` for each column signal in the input ndarray `x`
     
     Returns the ndarray, with fixed zero crossings on each column signal individually.
     """
     return np.transpose([
-        np.array(makeContinuousRange(x[:, 0].tolist(), print_out=print_out)[0]) if fix_0 else x[:, 0],
-        np.array(makeContinuousRange(x[:, 1].tolist(), print_out=print_out)[0]) if fix_1 else x[:, 1],
-        np.array(makeContinuousRange(x[:, 2].tolist(), print_out=print_out)[0]) if fix_2 else x[:, 2],
+        np.array(makeContinuousRange(x[:, 0].tolist(), debug_file=debug_file)[0]) if fix_0 else x[:, 0],
+        np.array(makeContinuousRange(x[:, 1].tolist(), debug_file=debug_file)[0]) if fix_1 else x[:, 1],
+        np.array(makeContinuousRange(x[:, 2].tolist(), debug_file=debug_file)[0]) if fix_2 else x[:, 2],
     ])
 
 

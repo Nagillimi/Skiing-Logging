@@ -1,4 +1,5 @@
 import numpy as np
+from domain.session_logger import SessionLogger as logger
 
 class RawTile:
     def __init__(
@@ -21,11 +22,7 @@ class RawTile:
 
 
     def __printProps__(self, prefix="\t"):
-        print(
-            prefix,
-            "Track type Variable |",
-            "Duration [s]", (self.time[-1] - self.time[0]) / 1000
-        )
+        logger.debug(f'{prefix}Track type Variable | Duration [s]", {(self.time[-1] - self.time[0]) / 1000}')
 
 
     @property

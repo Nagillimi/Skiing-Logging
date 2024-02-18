@@ -2,8 +2,9 @@ import numpy as np
 from constants.ski_th import SKI_SIDECUT_R
 from domain.evaluated_kinematics import EvaluatedKinematics
 from domain.g_force import GForce
+from domain.session_logger import SessionLogger as logger
 from utilities.quat import quatToEuler
-from utilities.sig_proc_np import deriv, maxIndex, zeroCrossingIdxs
+from utilities.sig_proc_np import deriv, zeroCrossingIdxs
 from utilities.stat_tests import StatTests as ST
 
 class Turn(EvaluatedKinematics):
@@ -12,19 +13,18 @@ class Turn(EvaluatedKinematics):
             highG_idx: int,
             alt_lpf: np.ndarray,
             g_force: GForce,
-            boot_quat: np.ndarray,
-            print_out=False
+            boot_euler: np.ndarray,
     ) -> None:
         super().__init__()
         
         self.highG_idx = highG_idx
         self.g_force = g_force
         self.alt_lpf = alt_lpf
-        self.boot_euler = np.apply_along_axis(quatToEuler, 1, boot_quat)
-        self.roll = self.boot_euler[:, 0]
-        self.d_boot_roll_dt = deriv(self.boot_euler[:, 0], 0.01)
+        
+        self.roll = boot_euler[:, 0]
+        self.d_boot_roll_dt = deriv(boot_euler[:, 0], 0.01)
 
-        self.identify(print_out=print_out)
+        self.identify()
 
 
     def identifyIdxs(self):
@@ -33,6 +33,8 @@ class Turn(EvaluatedKinematics):
         - turn baseline idx based on the most recent derivative zero crossing with a positive slope.
         - max roll idx between baseline roll and high G indices
         """
+        logger.debug('Identifying key indices in accleration and boot roll')
+
         self.baseline_idx_1 = np.max(zeroCrossingIdxs(self.g_force.d_mG_lpf_dt[:self.highG_idx - 1]))
         self.baseline_idx_2 = np.max(zeroCrossingIdxs(self.g_force.d2_mG_lpf_dt2[:self.baseline_idx_1 - 1]))
         self.baseline_idx_3 = round((self.baseline_idx_1 + self.baseline_idx_2) * 0.5)
@@ -62,20 +64,21 @@ class Turn(EvaluatedKinematics):
         self.baseline_range = [self.baseline_idx_2, self.baseline_idx_1]
         self.min_radius_range = [self.peak_roll_idx, self.highG_idx]
         self.offset_abs_roll = np.abs(self.roll[self.baseline_idx_1:self.highG_idx] + self.roll[self.baseline_idx_1])
-        self.heading_change = abs(self.boot_euler[self.highG_idx, 2] - self.boot_euler[self.baseline_idx_1, 2])
+        # self.heading_change = abs(self.boot_euler[self.highG_idx, 2] - self.boot_euler[self.baseline_idx_1, 2])
 
 
     def identifySide(self):
         """Identifies the turning side (uphill/downhill) based on the sign of the roll
         """
-        self.side = 'D' if self.boot_euler[self.baseline_idx_1, 0] < self.boot_euler[self.peak_roll_idx, 0] else 'U'
+        self.side = 'D' if self.roll[self.baseline_idx_1] < self.roll[self.peak_roll_idx] else 'U'
 
 
     def computeCarvingAngle(self):
-        """Using the baseline.
-        """
+        """Using the baseline angle, compute the carving angle in the boot frame."""
+        logger.debug('Computing the carving angle based on the identified indices.')
+
         def maxCarveFromBaseline(baseline_idx):
-            return abs(self.boot_euler[baseline_idx, 0] - self.boot_euler[self.peak_roll_idx, 0])
+            return abs(self.roll[baseline_idx] - self.roll[self.peak_roll_idx])
         
         self.carving_angle_1 = maxCarveFromBaseline(self.baseline_idx_1)
         self.carving_angle_2 = maxCarveFromBaseline(self.baseline_idx_2)
@@ -86,29 +89,31 @@ class Turn(EvaluatedKinematics):
         self.turning_radius = SKI_SIDECUT_R * np.cos(np.deg2rad(self.offset_abs_roll))
 
 
-    def testSuite(self, print_out=False) -> np.ndarray:
+    def testSuite(self) -> np.ndarray:
         """Run the test suite. Can toggle individual running here.
         
         In the future, can return values and parameters for each test. For ML
         """
+        logger.debug('Running test suite.')
         return np.array([
-            ST.testDecreasingTrend(self.alt_lpf, self.turn_range, print_out=print_out, header='Test alt_lpf has decreasing trend'),
-            ST.testMinSampleCount(self.turn_range, min_count=40, print_out=print_out, header='Test for minimum samples count'),
-            ST.testRecentMax(self.offset_abs_roll, self.turn_range, th=20, print_out=print_out, header='Test that the max carving occurs close to the max compression'),
-            ST.testLargestMagnitude(self.offset_abs_roll, self.turn_range, th=30, print_out=print_out, header='Test carve angle > 30deg'),
-            ST.testLargestMagnitude(self.g_force.mG_lpf, self.turn_range, th=1600, print_out=print_out, header='Test max g-force > 1.6G'),
-            ST.testLowerSampleStdDev(self.offset_abs_roll, self.min_radius_range, self.baseline_range, print_out=print_out, header='Test roll std dev (min radius < baseline)'),
-            ST.testSmallestMagnitude(self.g_force.mG_lpf, self.turn_range, th=1000, print_out=print_out, header='Test g-force at baseline < 1G'),
+            ST.testDecreasingTrend(self.alt_lpf, self.turn_range, header='Test alt_lpf has decreasing trend'),
+            ST.testMinSampleCount(self.turn_range, min_count=40, header='Test for minimum samples count'),
+            ST.testRecentMax(self.offset_abs_roll, self.turn_range, th=20, header='Test that the max carving occurs close to the max compression'),
+            ST.testLargestMagnitude(self.offset_abs_roll, self.turn_range, th=30, header='Test carve angle > 30deg'),
+            ST.testLargestMagnitude(self.g_force.mG_lpf, self.turn_range, th=1600, header='Test max g-force > 1.6G'),
+            ST.testLowerSampleStdDev(self.offset_abs_roll, self.min_radius_range, self.baseline_range, header='Test roll std dev (min radius < baseline)'),
+            ST.testSmallestMagnitude(self.g_force.mG_lpf, self.turn_range, th=1000, header='Test g-force at baseline < 1G'),
         ])
     
     
-    def identify(self, print_out=False):
-        """"""
-        # compute any key elements of the turn
+    def identify(self):
+        """Identifies the complete turning kinematics and runs the test suite, assigning a confidence value
+        based on specific statistical tests.
+        """
         self.identifyIdxs()
         self.identifySide()
         self.computeCarvingAngle()
-        self.test(self.testSuite, print_out=print_out)
+        self.test(self.testSuite)
 
 
     @property

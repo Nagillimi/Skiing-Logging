@@ -1,11 +1,13 @@
 import pandas as pd
-from utilities.decorators import printTracks
 from domain.devices.raw_tile import RawTile
+from domain.session_logger import SessionLogger as logger
+from utilities.decorators.print_tracks import printTracks
 
 
 @printTracks
-def decodeTile(file, print_out, header=''):
+def decodeTile(file, header=''):
     csv = pd.read_csv(file)
+    logger.info(f'Imported Tile data from csv, dimensions: {csv.size}')
 
     return RawTile(
         time=csv.iloc[:, 0].to_numpy(),

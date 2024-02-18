@@ -1,4 +1,5 @@
 import datetime as dt
+from domain.session_logger import SessionLogger as logger
 
 class Track:
     def __init__(
@@ -34,14 +35,10 @@ class Track:
         self.var = var
         self.course = course
 
+
     def __printProps__(self, prefix="\t"):
-        print(
-            prefix,
-            "Track type", self.track_type, "|",
-            "Date", self.date, "|",
-            "Time", self.tod, "|",
-            "Duration [s]", self.duration, "|",
-            "Length [m]", self.length
+        logger.debug(
+            f'{prefix} Track type {self.track_type} | Date {self.date} | Time {self.tod} | Duration [s] {self.duration} | Length [m] {self.length}'
         )
 
 

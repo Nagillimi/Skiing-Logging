@@ -1,13 +1,12 @@
 import numpy as np
 from utilities.stitch import stitch
 from domain.devices.track import Track
+from domain.session_logger import SessionLogger as logger
 
 
 def identifyOffsets(
     tile_alt: np.ndarray, 
     truth: list[Track],
-    print_out=False,
-    print_progress=False,
     use_mae=True,
     time_step_s=0.1,
     max_time_search_s=30,
@@ -51,9 +50,9 @@ def identifyOffsets(
 
         # iterate (in seconds)
         tile_ts_search += int(time_step_s * 1000)
-        if print_progress:
-            progress = round(100 * (i + 1) / (max_time_search_s + 1))
-            print(progress, '%', sep="")
+
+        progress = round(100 * (i + 1) / (max_time_search_s + 1))
+        logger.info(f'{progress}%')
     
     ts_all = [m[0] for m in collection]
     alt_all = [m[1] for m in collection]
@@ -66,9 +65,9 @@ def identifyOffsets(
     # 3. Align the timestamp with the start of the a50 dataset, incorporating the offset
     opt_ts = ts_all[min_ts_idx] 
     opt_alt = alt_all[min_ts_idx]
-    if print_out:
-        print('Synchronized Tile Parameters')
-        print('\tTimestamp offset (ms):', opt_ts)
-        print('\tAltitude offset (m):', opt_alt)
+
+    logger.debug(f'Synchronized Tile Parameters')
+    logger.debug(f'\tTimestamp offset (ms): {opt_ts}')
+    logger.debug(f'\tAltitude offset (m): {opt_alt}')
 
     return opt_ts, opt_alt

@@ -4,6 +4,7 @@ from constants.turn_th import D_MG_LPF_DT_TH
 from domain.devices.raw_tile import RawTile
 from domain.devices.track import Track
 from domain.g_force import GForce
+from domain.session_logger import SessionLogger as logger
 from models.geography import Geography
 from models.jump import Jump
 from models.static_registration import StaticRegistration
@@ -12,42 +13,40 @@ from models.turn import Turn
 from utilities.frames import convertToBootFrame
 from utilities.sig_proc_np import identifyLTThInsideRanges, length, lowpass, lowpass, zeroCrossingIdxsGTThInsideRanges
 from utilities.sync import identifyOffsets
-from utilities.quat import quatMult
+from utilities.quat import quatMult, quatToEuler
 
 class Tile:
     def __init__(
             self,
             raw: RawTile,
             prefer_9dof=False,
-            print_out=False,
             compute_kinematics=True,
     ):
         self.time = raw.time / 1000
-        self.constructProcessedSignals(raw, prefer_9dof, print_out)
+        self.constructProcessedSignals(raw, prefer_9dof)
 
         if not compute_kinematics:
             return
         
-        self.identifyGeographicalPoints(print_out=print_out)
-        self.identifyJumps(print_out=print_out)
-        self.identifyStaticRegistrations(print_out=print_out)
-        self.computeBootOrientations(print_out=print_out)
-        self.identifyTurns(print_out=print_out)
+        self.identifyGeographicalPoints()
+        self.identifyJumps()
+        self.identifyStaticRegistrations()
+        self.computeBootOrientations()
+        self.identifyTurns()
 
 
-    def __printProps__(self, prefix="\t"):
-        print(
-            prefix,
-            "Duration [s]", round(self.time[-1] - self.time[0])
-        )
+    def __printProps__(self=None, prefix="\t"):
+        logger.debug(f'{prefix}Duration [s]", {round(self.time[-1] - self.time[0])}')
 
 
-    def constructProcessedSignals(self, raw: RawTile, prefer_9dof: bool, print_out=False):
+    def constructProcessedSignals(self, raw: RawTile, prefer_9dof: bool=None):
         """Constructs all the processed signals for the Tile sensor."""
+        logger.info(f'Constructing all processed signals.')
+
         self.raw_alt = 44307.694 * (1 - (raw.pres / 1013.25)**0.190284)
         self.raw_alt_lpf = lowpass(self.raw_alt, 1/100, 'butter2')
         self.gyro_v = length(raw.gyro)
-        self.imu = IMU(raw.accel, raw.gyro, raw.mag if prefer_9dof else None, print_out=print_out)
+        self.imu = IMU(raw.accel, raw.gyro, raw.mag if prefer_9dof else None)
         self.g_force = GForce(raw.accel)
 
         # placeholder until the offsets are set from ground truth
@@ -58,18 +57,15 @@ class Tile:
     def identifyOffsets(self, 
         truth: list[Track],
         use_lpf=True,
-        print_out=False,
     ):
         """Synchronizes the raw tile signals with a ground truth (using a search for best fit),
         correcting altitude & time vectors (x&y) with translational offsets.
 
         Note: this places the time vector in timestamp format, for comparison to ground truth signals.
         """
-        opt_ts, opt_alt = identifyOffsets(
-            self.raw_alt_lpf if use_lpf else self.raw_alt,
-            use_lpf,
-            print_out,
-        )
+        logger.info(f'Identifying timestamp and altitude offsets.')
+
+        opt_ts, opt_alt = identifyOffsets(self.raw_alt_lpf if use_lpf else self.raw_alt, use_lpf)
         self.applyOffsets(opt_ts, opt_alt)
         self.applyTimestamp(truth[0].time[0])
 
@@ -94,11 +90,13 @@ class Tile:
         self.alt_lpf = self.raw_alt_lpf - alt_offset
 
 
-    def identifyGeographicalPoints(self, print_out=False):
+    def identifyGeographicalPoints(self=None):
         """Identifies key geographical points of interest, including lift peaks, run peaks, and 
         run bottoms for internal storage and use with other identifications.
         """
-        self.geography = Geography(self.time, self.alt_lpf, print_out)
+        logger.info(f'Identifying key geographical points based on altitude.')
+
+        self.geography = Geography(self.time, self.alt_lpf)
         self.downhill_idxs = np.transpose([
             [el.idx for el in self.geography.run_peaks],
             [el.idx for el in self.geography.run_bottoms],
@@ -113,32 +111,36 @@ class Tile:
         ])
 
 
-    def identifyJumps(self, print_out=False):
+    def identifyJumps(self=None):
         """Identify all points of low G-force and run the jump id pipeline on each.
         
         Confidence values will be associated with each `Jump` instance.
         """
+        logger.info(f'Identifying key points of near-zero acceleration.')
         lowG_els = identifyLTThInsideRanges(self.g_force.mG_lpf, JUMP_THRESHOLD_MG, self.downhill_idxs)
+
+        logger.info(f'Identifying jumping kinematics.')
         self.jumps = [
-            Jump(lowG_els[row], self.g_force, self.gyro_v, print_out)
+            Jump(lowG_els[row], self.g_force, self.gyro_v)
             for row in range(lowG_els.shape[0])
         ]
 
 
-    def identifyStaticRegistrations(self, print_out=False):
+    def identifyStaticRegistrations(self=None):
         """Identifies points for static sensor tile boot registrations, seen as the motionless 
         lift peaks after the moment of landing.
 
         Store with an attached timestamp, so that the system computes boot orientations based on new
         registrations (if any pass the tests!)
         """
+        logger.info(f'Identifying static registrations at lift peaks.')
+
         self.static_registration = StaticRegistration(
             peak_idxs=self.peak_idxs,
             time=self.time,
             alt_lpf=self.alt_lpf,
             mG=self.g_force.mG,
             imu=self.imu,
-            print_out=print_out,
         )
 
 
@@ -154,7 +156,7 @@ class Tile:
         """
 
 
-    def computeBootOrientations(self, print_out=False):
+    def computeBootOrientations(self=None):
         """Based on the identified static registrations, sensor orientations are transformed into the boot frame.
         
         Since registrations update and contain an associated timestamp, the boot orientations will update whenever
@@ -162,24 +164,29 @@ class Tile:
         on that frequency- otherwise this method will use the most recent registration available for sensor to boot
         orientation transformations.
         """
+        logger.info(f'Converting orientation into static boot frame.')
         self.boot_quat = np.apply_along_axis(convertToBootFrame, 1, self.imu.quat)
 
         # center the boot orientation
+        logger.info(f'Applying static registations to compute the orientation quaternion representing the boot.')
         for i in range(self.boot_quat.shape[0] - 1):
             self.boot_quat[i] = quatMult(
                 self.boot_quat[i], 
                 self.static_registration.getMostRecentRegistrationQuat(self.time[i])
             )
 
-        if print_out:
-            print('Transformed sensor orientation into boot frame using the list of static registrations.')
+        logger.debug('Converting boot orientation into euler data.')
+        self.boot_euler = np.apply_along_axis(quatToEuler, 1, self.boot_quat)
 
 
-    def identifyTurns(self, print_out=False):
+    def identifyTurns(self=None):
         """Identify all turn-based kinematics."""
+        logger.info(f'Identifying key points of larger acceleration.')
         highG_els = zeroCrossingIdxsGTThInsideRanges(self.g_force.d_mG_lpf_dt, D_MG_LPF_DT_TH, self.downhill_idxs)
+
+        logger.info(f'Identifying turning kinematics based on large accelerations.')
         self.turns = [
-            Turn(highG_els[idx], self.alt_lpf, self.g_force, self.boot_quat, print_out)
+            Turn(highG_els[idx], self.alt_lpf, self.g_force, self.boot_euler)
             for idx in range(highG_els.shape[0])
         ]
 
