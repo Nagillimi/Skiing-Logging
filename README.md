@@ -16,9 +16,9 @@ To provide more skiing analytics with an extra wearable placed above the ski boo
 - [x] jump distance
 - [x] jump height
 - [x] boot orientations
-- [ ] turn count
-  - [ ] left vs right
-- [ ] ski carving angle
+- [x] turn count
+  - [x] left vs right
+- [x] ski carving angle
 - [ ] ski angle of attack
 - [ ] skid to carving ratio
 - [ ] grf/reaction force power in [Watts]
