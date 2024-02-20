@@ -1,5 +1,6 @@
 import math
 from scipy import signal
+from domain.session_logger import SessionLogger as logger
 
 
 def arma(x: list, m=5):
@@ -17,7 +18,7 @@ def diff(x1: list, x2: list):
     return [x1[i] - x2[i] for i in range(len(x1))]
 
 
-def makeContinuousRange(x: list, m=0.5, full_scale=360, print_out=False):
+def makeContinuousRange(x: list, m=0.5, full_scale=360):
     """Fixes the zero crossings in a signal that is previously clamped to a 
     single scale range of `single_scale`.
 
@@ -36,15 +37,14 @@ def makeContinuousRange(x: list, m=0.5, full_scale=360, print_out=False):
     N = len(x)
     m_FS = m * full_scale
     p = 0
-    if print_out: print('Making signal continuous based on FS range:', full_scale)
+    logger.debug(f'Making signal continuous based on FS range: {full_scale}')
 
     for i in range(N):
         if i == 0: continue
-        if print_out:
-            current_p = round(i/N*100)
-            if current_p % 5 == 0 and p != current_p:
-                print('makeContinuousRange() progress', current_p, '%')
-                p = current_p
+        current_p = round(i/N*100)
+        if current_p % 5 == 0 and p != current_p:
+            logger.debug(f'makeContinuousRange() progress {current_p}%')
+            p = current_p
 
         xi_minus_xi1 = x[i] - x[i - 1]
         abs_xi_minus_xi1 = abs(xi_minus_xi1)
@@ -66,10 +66,10 @@ def makeContinuousRange(x: list, m=0.5, full_scale=360, print_out=False):
                     skips.append([i - 1, i])
                     break
             continue
-    if print_out: print('makeContinuousRange() skips found:', len(skips))
+    logger.debug(f'makeContinuousRange() skips found: {len(skips)}')
     return y, skips
 
-    # print(len(x))
+    # logger.debug(len(x))
     # m = 0.95
     # y = x
     # for i in range(len(x) - 1):

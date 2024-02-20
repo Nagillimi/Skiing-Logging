@@ -1,13 +1,16 @@
 import datetime as dt
 import pandas as pd
-from domain.track import Track
-from utilities.decorators import printTracks
+from domain.devices.track import Track
+from domain.session_logger import SessionLogger as logger
+from utilities.decorators.print_tracks import printTracks
 
 
 @printTracks
-def decodeF6P(file, print_out=False, header=''):
+def decodeF6P(file):
     ts_msb = 631065600 # Add MSB since this is the LSB of the ts https://stackoverflow.com/a/57836047
     csv = pd.read_csv(file, low_memory=False) # no low memory due to columns having data with nonintersecting types
+    logger.info(f'Imported F6P data from csv, rows: {csv.size}')
+
     lap_rows = csv.loc[csv['Message'] == 'lap'].loc[csv['Type'] == 'Data']
     lap_indices = [0] + lap_rows.index.tolist()
     tracks = []
@@ -45,4 +48,6 @@ def decodeF6P(file, print_out=False, header=''):
         tracks.append(trackObj)
 
         total_dist += length
+        
+    logger.info(f'Decoded F6P data into {len(tracks)} tracks.')
     return tracks
