@@ -48,13 +48,13 @@ class StaticRegistration:
         if search < 0:
             return still_ranges
         
-        logger.debug(f'Computing fine search for still range')
-        logger.debug(f'search: {search}')
-        logger.debug(f'coarse_mult: {coarse_mult}')
-        logger.debug(f'fine_mult: {fine_mult}')
+        logger.debug(f'\tComputing fine search for still range')
+        logger.debug(f'\tsearch: {search}')
+        logger.debug(f'\tcoarse_mult: {coarse_mult}')
+        logger.debug(f'\tfine_mult: {fine_mult}')
         
         for i in range(search):
-            logger.debug(f'i iter:\t{i}')
+            # logger.debug(f'i iter:\t{i}')
             for j in range(search):
                 # coarse search
                 head = prev_tail + coarse_mult * j
@@ -66,10 +66,10 @@ class StaticRegistration:
                 
                 trailing_tests = self.testMotionForStillness([head, tail])
                 
-                logger.debug(f'\tj iter:\t{j}')
-                logger.debug(f'\thead = prev_tail + coarse_mult * j:\t{head} = {prev_tail} + {coarse_mult} * {j}')
-                logger.debug(f'\ttail = head + wsamples:\t{tail} = {head} + {wsamples}')
-                logger.debug(f'\tstill_tests:\t{trailing_tests}')
+                # logger.debug(f'\tj iter:\t{j}')
+                # logger.debug(f'\thead = prev_tail + coarse_mult * j:\t{head} = {prev_tail} + {coarse_mult} * {j}')
+                # logger.debug(f'\ttail = head + wsamples:\t{tail} = {head} + {wsamples}')
+                # logger.debug(f'\tstill_tests:\t{trailing_tests}')
                 
                 if sum(trailing_tests) == len(trailing_tests):
                     logger.debug(f'\t\tcoarse range found:\t{head + tail}')
@@ -82,11 +82,11 @@ class StaticRegistration:
                         fine_trailing_head = head + fine_mult * (k + 1)
                         fine_trailing_tail = tail + fine_mult * (k + 1)
 
-                        logger.debug(f'\t\tk iter:\t{k}')
-                        logger.debug(f'\t\tfine_leading_head = head - fine_mult * k + 1:\t {fine_leading_head} = {head} - {fine_mult} * {k + 1}')
-                        logger.debug(f'\t\tfine_leading_tail = tail - fine_mult * k + 1:\t {fine_leading_tail} = {tail} - {fine_mult} * {k + 1}')
-                        logger.debug(f'\t\tfine_trailing_head = head + fine_mult * k + 1:\t {fine_trailing_head} = {head} + {fine_mult} * {k + 1}')
-                        logger.debug(f'\t\tfine_trailing_tail = tail + fine_mult * k + 1:\t {fine_trailing_tail} = {tail} + {fine_mult} * {k + 1}')
+                        # logger.debug(f'\t\tk iter:\t{k}')
+                        # logger.debug(f'\t\tfine_leading_head = head - fine_mult * k + 1:\t {fine_leading_head} = {head} - {fine_mult} * {k + 1}')
+                        # logger.debug(f'\t\tfine_leading_tail = tail - fine_mult * k + 1:\t {fine_leading_tail} = {tail} - {fine_mult} * {k + 1}')
+                        # logger.debug(f'\t\tfine_trailing_head = head + fine_mult * k + 1:\t {fine_trailing_head} = {head} + {fine_mult} * {k + 1}')
+                        # logger.debug(f'\t\tfine_trailing_tail = tail + fine_mult * k + 1:\t {fine_trailing_tail} = {tail} + {fine_mult} * {k + 1}')
 
                         if refinedHead is None:
                             if fine_leading_head <= r[0]:
@@ -94,7 +94,7 @@ class StaticRegistration:
                                 logger.debug(f'\t\t\trefined head set:\t{refinedHead}')
                             
                             leading_tests = self.testMotionForStillness([fine_leading_head, fine_leading_tail])
-                            logger.debug(f'\t\tleading_tests:\t{leading_tests}')
+                            # logger.debug(f'\t\tleading_tests:\t{leading_tests}')
 
                             if sum(leading_tests) < len(leading_tests):
                                 refinedHead = fine_leading_head + fine_mult
@@ -106,7 +106,7 @@ class StaticRegistration:
                                 logger.debug(f'\t\t\trefined tail set:\t{refinedTail}')
 
                             trailing_tests = self.testMotionForStillness([fine_trailing_head, fine_trailing_tail])
-                            logger.debug(f'\t\ttrailing_tests:\t{trailing_tests}')
+                            # logger.debug(f'\t\ttrailing_tests:\t{trailing_tests}')
 
                             if sum(trailing_tests) < len(trailing_tests):
                                 refinedTail = fine_trailing_tail - fine_mult
@@ -129,9 +129,10 @@ class StaticRegistration:
         """Uses the coarse range from the lift peak and searches for still ranges, returning
         the longest range.
         """
-        fine_ranges = self.computeFineStillRanges(r=r, )
-        logger.debug(f'Fine static registration ranges:{fine_ranges}')
+        logger.debug(f'Identifying fine still ranges inside coarse range: {r}')
+        fine_ranges = self.computeFineStillRanges(r=r)
         fine_sizes = [p[1] - p[0] for p in fine_ranges if len(p) > 0]
+        logger.debug(f'Selecting largest fine range: {fine_ranges} with sizes: {fine_sizes}')
         return fine_ranges[maxIndex(fine_sizes)] if len(fine_sizes) > 0 else None
 
 
@@ -146,7 +147,7 @@ class StaticRegistration:
                 avg_quat=avgQuat(self.imu.quat[r[0]:r[1], :]),
             ) for r in self.ranges if r is not None
         ]
-        logger.debug(f'Identified {len(self.registrations)} fine static ranges.')
+        logger.debug(f'Identified {len(self.registrations)} total static registrations.')
 
 
     def identify(self):
@@ -156,8 +157,8 @@ class StaticRegistration:
         logger.debug(f'Identifying static ranges up to index: {self.time.shape[0]}')
 
         self.ranges = [
-            self.longestFineStillRange(r=peak_idx, ) 
-            for peak_idx in self.peak_idxs
+            self.longestFineStillRange(r=self.peak_idxs[row]) 
+            for row in range(self.peak_idxs.shape[0])
         ]
         self.assignRegistrationsFromRanges()
 

@@ -29,7 +29,7 @@ def onlyIdxsInsideRanges(idxs: np.ndarray, ranges: np.ndarray) -> np.ndarray:
     return np.array(_idxs)
 
 
-def deriv(x: np.ndarray, dt, lpf=True) -> np.ndarray:
+def deriv(x: np.ndarray, dt=1/100, lpf=True) -> np.ndarray:
     """Five point estimation for the first order derivative, centred about xi.
 
     .. math::

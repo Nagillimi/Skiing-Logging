@@ -14,15 +14,15 @@ class Turn(EvaluatedKinematics):
             alt_lpf: np.ndarray,
             g_force: GForce,
             boot_euler: np.ndarray,
+            d_boot_euler_dt: np.ndarray,
     ) -> None:
         super().__init__()
         
         self.highG_idx = highG_idx
         self.g_force = g_force
         self.alt_lpf = alt_lpf
-        
         self.roll = boot_euler[:, 0]
-        self.d_boot_roll_dt = deriv(boot_euler[:, 0], 0.01)
+        self.d_boot_roll_dt = d_boot_euler_dt[:, 0]
 
         self.identify()
 
@@ -33,7 +33,7 @@ class Turn(EvaluatedKinematics):
         - turn baseline idx based on the most recent derivative zero crossing with a positive slope.
         - max roll idx between baseline roll and high G indices
         """
-        logger.debug('Identifying key indices in accleration and boot roll')
+        logger.debug('Identifying key indices in accleration and boot roll.')
 
         self.baseline_idx_1 = np.max(zeroCrossingIdxs(self.g_force.d_mG_lpf_dt[:self.highG_idx - 1]))
         self.baseline_idx_2 = np.max(zeroCrossingIdxs(self.g_force.d2_mG_lpf_dt2[:self.baseline_idx_1 - 1]))
@@ -45,6 +45,7 @@ class Turn(EvaluatedKinematics):
         self.baseline_idx_4 = round((self.peak_roll_idx + self.past_peak_roll_idx) * 0.5)
 
         mean_roll = np.mean(self.roll[self.past_peak_roll_idx:self.peak_roll_idx])
+        
         # if a right turn (past pk < pk)
         if self.roll[self.past_peak_roll_idx] < self.roll[self.peak_roll_idx]:
             idxs_above_mean = np.argwhere(
@@ -63,7 +64,7 @@ class Turn(EvaluatedKinematics):
         self.turn_range = [self.baseline_idx_1, self.highG_idx]
         self.baseline_range = [self.baseline_idx_2, self.baseline_idx_1]
         self.min_radius_range = [self.peak_roll_idx, self.highG_idx]
-        self.offset_abs_roll = np.abs(self.roll[self.baseline_idx_1:self.highG_idx] + self.roll[self.baseline_idx_1])
+        self.offset_abs_roll = np.absolute(self.roll[self.baseline_idx_1:self.highG_idx] + self.roll[self.baseline_idx_1])
         # self.heading_change = abs(self.boot_euler[self.highG_idx, 2] - self.boot_euler[self.baseline_idx_1, 2])
 
 
@@ -97,12 +98,17 @@ class Turn(EvaluatedKinematics):
         logger.debug('Running test suite.')
         return np.array([
             ST.testDecreasingTrend(self.alt_lpf, self.turn_range, header='Test alt_lpf has decreasing trend'),
-            ST.testMinSampleCount(self.turn_range, min_count=40, header='Test for minimum samples count'),
-            ST.testRecentMax(self.offset_abs_roll, self.turn_range, th=20, header='Test that the max carving occurs close to the max compression'),
-            ST.testLargestMagnitude(self.offset_abs_roll, self.turn_range, th=30, header='Test carve angle > 30deg'),
-            ST.testLargestMagnitude(self.g_force.mG_lpf, self.turn_range, th=1600, header='Test max g-force > 1.6G'),
-            ST.testLowerSampleStdDev(self.offset_abs_roll, self.min_radius_range, self.baseline_range, header='Test roll std dev (min radius < baseline)'),
-            ST.testSmallestMagnitude(self.g_force.mG_lpf, self.turn_range, th=1000, header='Test g-force at baseline < 1G'),
+            ST.testMinSampleCount(self.turn_range, min_count=35, header='Test for minimum samples count'),
+            ST.testRecentMax(self.offset_abs_roll, th=25, header='Test that the max carving occurs close to the max compression'),
+            ST.testLargestMagnitude(self.offset_abs_roll, th=20, header='Test carve angle > 30deg'),
+            ST.testLargestMagnitude(self.g_force.mG_lpf, self.turn_range, th=1250, header='Test max g-force > 1250mG'),
+            ST.testLowerSampleStdDev(
+                self.offset_abs_roll,
+                [self.peak_roll_idx - self.baseline_idx_1, len(self.min_radius_range) - 1],
+                [0, len(self.baseline_range) - 1],
+                header='Test roll std dev (min radius < baseline)'
+            ),
+            ST.testSmallestMagnitude(self.g_force.mG_lpf, self.turn_range, th=1000, header='Test g-force at baseline < 1000mG'),
         ])
     
     
@@ -110,6 +116,7 @@ class Turn(EvaluatedKinematics):
         """Identifies the complete turning kinematics and runs the test suite, assigning a confidence value
         based on specific statistical tests.
         """
+        logger.debug('New turn identification.')
         self.identifyIdxs()
         self.identifySide()
         self.computeCarvingAngle()
@@ -124,6 +131,7 @@ class Turn(EvaluatedKinematics):
     @highG_idx.setter
     def highG_idx(self, highG_idx):
         self.__highG_idx = highG_idx
+
 
     @property
     def baseline_idx_1(self) -> int:

@@ -1,10 +1,13 @@
 import os
 import numpy as np
 from constants.jump_th import JUMP_THRESHOLD_MG
+from constants.turn_th import D_MG_LPF_DT_TH
 from models.tile import Tile
 from models.jump import Jump
+from models.turn import Turn
 from utilities.quat import quatToEuler
 from utilities.sig_proc import mean, std
+from utilities.sig_proc_np import maxIndex, minIndex
 
 
 JUMP_HEADER = 'mG_th,'\
@@ -33,42 +36,85 @@ JUMP_HEADER = 'mG_th,'\
     + 'min_mG[full_range],max_mG[full_range],mean_mG[full_range],std_mG[full_range],'\
     + 'min_gyro[full_range],max_gyro[full_range],mean_gyro[full_range],std_gyro[full_range]'\
     + '\n'
+"""Header for confirming jump identification. Designed for ML."""
 
 
 SENSOR_BOOT_HEADER = 'time [s],alt_lpf [m],sensor_roll,sensor_pitch,sensor_yaw,'\
     + 'offset_roll,offset_pitch,offset_yaw,'\
     + 'boot_roll,boot_pitch,boot_yaw,'\
+    + 'min_mG_lpf[turn_range],max_mG_lpf[turn_range],mean_mG_lpf[turn_range],std_mG_lpf[turn_range],'\
     + '\n'
+"""Header for the sensor boot comparison datafile."""
 
 
-def createDataFile(name, header=""):
+TURN_HEADER = 'd_mG_lpf_dt_th,'\
+    + 'side,highG_idx,'\
+    + 'baseline_idx_1,baseline_idx_2,baseline_idx_3,baseline_idx_4,baseline_idx_5,'\
+    + 'peak_roll_idx,past_peak_roll_idx,'\
+    + 'turn_range_1,turn_range_2,turn_range,'\
+    + 'baseline_range_1,baseline_range_2,baseline_range,'\
+    + 'min_radius_range_1,min_radius_range_2,min_radius_range,'\
+    + 'mG_lpf[highG_idx],d_boot_roll_dt[highG_idx],offset_abs_roll[highG_idx],'\
+    + 'min_mG_lpf[turn_range],max_mG_lpf[turn_range],mean_mG_lpf[turn_range],std_mG_lpf[turn_range],'\
+    + 'min_mG_lpf[baseline_range],max_mG_lpf[baseline_range],mean_mG_lpf[baseline_range],std_mG_lpf[baseline_range],'\
+    + 'min_mG_lpf[min_radius_range_range],max_mG_lpf[min_radius_range_range],mean_mG_lpf[min_radius_range_range],std_mG_lpf[min_radius_range_range],'\
+    + 'min_offset_abs_roll[turn_range],max_offset_abs_roll[turn_range],mean_offset_abs_roll[turn_range],std_offset_abs_roll[turn_range],'\
+    + 'min_offset_abs_roll[baseline_range],max_offset_abs_roll[baseline_range],mean_offset_abs_roll[baseline_range],std_offset_abs_roll[baseline_range],'\
+    + 'min_offset_abs_roll[min_radius_range_range],max_offset_abs_roll[min_radius_range_range],mean_offset_abs_roll[min_radius_range_range],std_offset_abs_roll[min_radius_range_range],'\
+    + 'min_d_roll_dt[turn_range],max_d_roll_dt[turn_range],mean_d_roll_dt[turn_range],std_d_roll_dt[turn_range],'\
+    + 'min_d_roll_dt[baseline_range],max_d_roll_dt[baseline_range],mean_d_roll_dt[baseline_range],std_d_roll_dt[baseline_range],'\
+    + 'min_d_roll_dt[min_radius_range_range],max_d_roll_dt[min_radius_range_range],mean_d_roll_dt[min_radius_range_range],std_d_roll_dt[min_radius_range_range],'\
+    + 'min_alt_lpf[turn_range],max_alt_lpf[turn_range],mean_alt_lpf[turn_range],std_alt_lpf[turn_range],'\
+    + 'min_alt_lpf[baseline_range],max_alt_lpf[baseline_range],mean_alt_lpf[baseline_range],std_alt_lpf[baseline_range],'\
+    + 'min_alt_lpf[min_radius_range_range],max_alt_lpf[min_radius_range_range],mean_alt_lpf[min_radius_range_range],std_d_roll_dt[min_radius_range_range],'\
+    + 'carving_angle_1,carving_angle_2, carving_angle_3,carving_angle_4,carving_angle_5,'\
+    + 'max_idx[mG_lpf[turn_range]],'\
+    + 'max_idx[offset_abs_roll[turn_range]],'\
+    + 'max_idx[d_roll_dt[turn_range]],'\
+    + 'min_idx[mG_lpf[turn_range]],'\
+    + 'min_idx[offset_abs_roll[turn_range]],'\
+    + 'min_idx[d_roll_dt[turn_range]]'\
+    + '\n'
+"""Header for confirming turn identification. Designed for ML."""
+
+
+def createDataFile(name='data.csv', subdir='', header=''):
     """Creates a generic data file inside the `logs/` dir.
     
     Checks that the logs dir exists, if not creates it.
 
     Checks to see if the logfile already exists, then overwrites it.
     """
-    # single log file across all tracks, used to train future ml models
+    # ensure the logs dir exists, if not create it
     if not os.path.exists(os.path.join(os.getcwd().split('src')[0], 'logs')):
         os.mkdir(os.path.join(os.getcwd().split('src')[0], 'logs'))
-    
-    # delete previous file with matching name
-    if os.path.exists(os.path.join(os.getcwd().split('src')[0], 'logs/', name)):
-        os.remove(os.path.join(os.getcwd().split('src')[0], 'logs/', name))
 
-    file = open(os.path.join(os.getcwd().split('src')[0], 'logs/', name), "w")
+    # if you want a subdir, ensure the subdir exists, if not create it
+    if subdir and not os.path.exists(os.path.join(os.getcwd().split('src')[0], f'logs/{subdir}')):
+        os.mkdir(os.path.join(os.getcwd().split('src')[0], f'logs/{subdir}'))
+    
+    # delete previous file with matching name if it exists (for good measure)
+    if os.path.exists(os.path.join(os.getcwd().split('src')[0], (f'logs/{subdir}/{name}' if subdir else f'logs/{name}'))):
+        os.remove(os.path.join(os.getcwd().split('src')[0], (f'logs/{subdir}/{name}' if subdir else f'logs/{name}')))
+
+    file = open(os.path.join(os.getcwd().split('src')[0], (f'logs/{subdir}/{name}' if subdir else f'logs/{name}')), "w")
     file.write(header)
     return file
 
 
 def createJumpDataFile(name):
     """Creates a specific logfile for jump data."""
-    return createDataFile(name, JUMP_HEADER)
+    return createDataFile(name=name, subdir='jump', header=JUMP_HEADER)
 
 
 def createSensorBootDataFile(name):
     """Creates a specific logfile for sensor boot frame data."""
-    return createDataFile(name, SENSOR_BOOT_HEADER)
+    return createDataFile(name=name, subdir='sensor_boot', header=SENSOR_BOOT_HEADER)
+
+
+def createTurnDataFile(name):
+    """Creates a specific logfile for sensor boot frame data."""
+    return createDataFile(name=name, subdir='turn', header=TURN_HEADER)
 
 
 def constructJumpLine(jump: Jump):
@@ -165,6 +211,98 @@ def constructJumpLine(jump: Jump):
     line += f'{max(jump.gyro)},'
     line += f'{mean(jump.gyro)},'
     line += f'{std(jump.gyro)}'
+    line += '\n'
+
+    return line
+
+
+def constructTurnLine(turn: Turn):
+    """Constructs the (lengthy) data row based on the turn."""
+    shifted_turn_range = [0, len(turn.turn_range) - 1]
+    shifted_baseline_range = [0, len(turn.baseline_range) - 1]
+    shifted_min_radius_range = [0, len(turn.min_radius_range) - 1]
+
+    line = f'{D_MG_LPF_DT_TH},'
+    line += f'{turn.side},'
+    line += f'{turn.highG_idx},'
+    line += f'{turn.baseline_idx_1},'
+    line += f'{turn.baseline_idx_2},'
+    line += f'{turn.baseline_idx_3},'
+    line += f'{turn.baseline_idx_4},'
+    line += f'{turn.baseline_idx_5},'
+    line += f'{turn.peak_roll_idx},'
+    line += f'{turn.past_peak_roll_idx},'
+    line += f'{turn.turn_range[0]},'
+    line += f'{turn.turn_range[1]},'
+    line += f'{turn.turn_range[1] - turn.turn_range[0]},'
+    line += f'{turn.baseline_range[0]},'
+    line += f'{turn.baseline_range[1]},'
+    line += f'{turn.baseline_range[1] - turn.baseline_range[0]},'
+    line += f'{turn.min_radius_range[0]},'
+    line += f'{turn.min_radius_range[1]},'
+    line += f'{turn.min_radius_range[1] - turn.min_radius_range[0]},'
+    line += f'{turn.g_force.mG_lpf[turn.highG_idx]},'
+    line += f'{turn.d_boot_roll_dt[turn.highG_idx]},'
+    line += f'{turn.offset_abs_roll[-1]},'
+    line += f'{turn.g_force.mG_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else min(turn.g_force.mG_lpf[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else max(turn.g_force.mG_lpf[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else mean(turn.g_force.mG_lpf[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else std(turn.g_force.mG_lpf[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else min(turn.g_force.mG_lpf[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else max(turn.g_force.mG_lpf[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else mean(turn.g_force.mG_lpf[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else std(turn.g_force.mG_lpf[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else min(turn.g_force.mG_lpf[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else max(turn.g_force.mG_lpf[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else mean(turn.g_force.mG_lpf[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.g_force.mG_lpf[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else std(turn.g_force.mG_lpf[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_turn_range[0]] if shifted_turn_range[0] == shifted_turn_range[1] else min(turn.offset_abs_roll[shifted_turn_range[0]:shifted_turn_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_turn_range[0]] if shifted_turn_range[0] == shifted_turn_range[1] else max(turn.offset_abs_roll[shifted_turn_range[0]:shifted_turn_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_turn_range[0]] if shifted_turn_range[0] == shifted_turn_range[1] else mean(turn.offset_abs_roll[shifted_turn_range[0]:shifted_turn_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_turn_range[0]] if shifted_turn_range[0] == shifted_turn_range[1] else std(turn.offset_abs_roll[shifted_turn_range[0]:shifted_turn_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_baseline_range[0]] if shifted_baseline_range[0] == shifted_baseline_range[1] else min(turn.offset_abs_roll[shifted_baseline_range[0]:shifted_baseline_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_baseline_range[0]] if shifted_baseline_range[0] == shifted_baseline_range[1] else max(turn.offset_abs_roll[shifted_baseline_range[0]:shifted_baseline_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_baseline_range[0]] if shifted_baseline_range[0] == shifted_baseline_range[1] else mean(turn.offset_abs_roll[shifted_baseline_range[0]:shifted_baseline_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_baseline_range[0]] if shifted_baseline_range[0] == shifted_baseline_range[1] else std(turn.offset_abs_roll[shifted_baseline_range[0]:shifted_baseline_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_min_radius_range[0]] if shifted_min_radius_range[0] == shifted_min_radius_range[1] else min(turn.offset_abs_roll[shifted_min_radius_range[0]:shifted_min_radius_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_min_radius_range[0]] if shifted_min_radius_range[0] == shifted_min_radius_range[1] else max(turn.offset_abs_roll[shifted_min_radius_range[0]:shifted_min_radius_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_min_radius_range[0]] if shifted_min_radius_range[0] == shifted_min_radius_range[1] else mean(turn.offset_abs_roll[shifted_min_radius_range[0]:shifted_min_radius_range[1]])},'
+    line += f'{turn.offset_abs_roll[shifted_min_radius_range[0]] if shifted_min_radius_range[0] == shifted_min_radius_range[1] else std(turn.offset_abs_roll[shifted_min_radius_range[0]:shifted_min_radius_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else min(turn.d_boot_roll_dt[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else max(turn.d_boot_roll_dt[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else mean(turn.d_boot_roll_dt[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else std(turn.d_boot_roll_dt[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else min(turn.d_boot_roll_dt[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else max(turn.d_boot_roll_dt[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else mean(turn.d_boot_roll_dt[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else std(turn.d_boot_roll_dt[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else min(turn.d_boot_roll_dt[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else max(turn.d_boot_roll_dt[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else mean(turn.d_boot_roll_dt[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.d_boot_roll_dt[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else std(turn.d_boot_roll_dt[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.alt_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else min(turn.alt_lpf[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.alt_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else max(turn.alt_lpf[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.alt_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else mean(turn.alt_lpf[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.alt_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else std(turn.alt_lpf[turn.turn_range[0]:turn.turn_range[1]])},'
+    line += f'{turn.alt_lpf[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else min(turn.alt_lpf[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.alt_lpf[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else max(turn.alt_lpf[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.alt_lpf[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else mean(turn.alt_lpf[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.alt_lpf[turn.baseline_range[0]] if turn.baseline_range[0] == turn.baseline_range[1] else std(turn.alt_lpf[turn.baseline_range[0]:turn.baseline_range[1]])},'
+    line += f'{turn.alt_lpf[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else min(turn.alt_lpf[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.alt_lpf[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else max(turn.alt_lpf[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.alt_lpf[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else mean(turn.alt_lpf[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.alt_lpf[turn.min_radius_range[0]] if turn.min_radius_range[0] == turn.min_radius_range[1] else std(turn.alt_lpf[turn.min_radius_range[0]:turn.min_radius_range[1]])},'
+    line += f'{turn.carving_angle_1},'
+    line += f'{turn.carving_angle_2},'
+    line += f'{turn.carving_angle_3},'
+    line += f'{turn.carving_angle_4},'
+    line += f'{turn.carving_angle_5},'
+    line += f'{turn.g_force.mG_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else maxIndex(turn.g_force.mG_lpf[turn.turn_range[0]:turn.turn_range[1]]) - turn.baseline_idx_1},'
+    line += f'{maxIndex(turn.offset_abs_roll)},'
+    line += f'{turn.d_boot_roll_dt[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else maxIndex(turn.d_boot_roll_dt[turn.turn_range[0]:turn.turn_range[1]]) - turn.baseline_idx_1},'
+    line += f'{turn.g_force.mG_lpf[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else minIndex(turn.g_force.mG_lpf[turn.turn_range[0]:turn.turn_range[1]]) - turn.baseline_idx_1},'
+    line += f'{minIndex(turn.offset_abs_roll)},'
+    line += f'{turn.d_boot_roll_dt[turn.turn_range[0]] if turn.turn_range[0] == turn.turn_range[1] else minIndex(turn.d_boot_roll_dt[turn.turn_range[0]:turn.turn_range[1]]) - turn.baseline_idx_1}'
     line += '\n'
 
     return line

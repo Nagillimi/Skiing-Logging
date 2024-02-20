@@ -7,7 +7,7 @@ from utilities.decorators.singleton import singleton
 class SessionLogger(logging.Logger):
     def __init__(self) -> None:
         super().__init__('session')
-        formatter = logging.Formatter('%(levelname)s: %(asctime)s - %(message)s')
+        formatter = logging.Formatter('%(message)s')
 
         self.setLevel(logging.DEBUG)
 

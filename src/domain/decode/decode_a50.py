@@ -6,9 +6,9 @@ from utilities.decorators.print_tracks import printTracks
 
 
 @printTracks
-def decodeA50(file, header=''):
+def decodeA50(file):
     csv = pd.read_csv(file)
-    logger.info(f'Imported A50 data from csv, dimensions: {csv.size}')
+    logger.info(f'Imported A50 data from csv, rows: {csv.size}')
 
     l = csv.loc[csv.iloc[:, 0].isnull()].index.to_list()
     nan_indices = [0] + l + [csv.shape[0]]
@@ -60,6 +60,6 @@ def decodeA50(file, header=''):
 
 
 @printTracks
-def decodeA50Downhill(file, header=''):
-    tracks = decodeA50(file, header="")
+def decodeA50Downhill(file):
+    tracks = decodeA50(file)
     return [track for track in tracks if track.track_type == "Downhill"]

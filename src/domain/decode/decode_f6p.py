@@ -6,10 +6,10 @@ from utilities.decorators.print_tracks import printTracks
 
 
 @printTracks
-def decodeF6P(file, header=''):
+def decodeF6P(file):
     ts_msb = 631065600 # Add MSB since this is the LSB of the ts https://stackoverflow.com/a/57836047
     csv = pd.read_csv(file, low_memory=False) # no low memory due to columns having data with nonintersecting types
-    logger.info(f'Imported F6P data from csv, dimensions: {csv.size}')
+    logger.info(f'Imported F6P data from csv, rows: {csv.size}')
 
     lap_rows = csv.loc[csv['Message'] == 'lap'].loc[csv['Type'] == 'Data']
     lap_indices = [0] + lap_rows.index.tolist()

@@ -11,7 +11,7 @@ from models.static_registration import StaticRegistration
 from models.imu import IMU
 from models.turn import Turn
 from utilities.frames import convertToBootFrame
-from utilities.sig_proc_np import identifyLTThInsideRanges, length, lowpass, lowpass, zeroCrossingIdxsGTThInsideRanges
+from utilities.sig_proc_np import deriv, identifyLTThInsideRanges, length, lowpass, lowpass, zeroCrossingIdxsGTThInsideRanges
 from utilities.sync import identifyOffsets
 from utilities.quat import quatMult, quatToEuler
 
@@ -110,6 +110,8 @@ class Tile:
             [el.idx for el in self.geography.run_peaks],
         ])
 
+        logger.info(f'Found {self.downhill_idxs.shape[0]} Downhill tracks | {self.lift_idxs.shape[0]} Lift tracks.')
+
 
     def identifyJumps(self=None):
         """Identify all points of low G-force and run the jump id pipeline on each.
@@ -119,7 +121,7 @@ class Tile:
         logger.info(f'Identifying key points of near-zero acceleration.')
         lowG_els = identifyLTThInsideRanges(self.g_force.mG_lpf, JUMP_THRESHOLD_MG, self.downhill_idxs)
 
-        logger.info(f'Identifying jumping kinematics.')
+        logger.info(f'Computing the associated jumping kinematics based on near-zero acclerations.')
         self.jumps = [
             Jump(lowG_els[row], self.g_force, self.gyro_v)
             for row in range(lowG_els.shape[0])
@@ -177,6 +179,7 @@ class Tile:
 
         logger.debug('Converting boot orientation into euler data.')
         self.boot_euler = np.apply_along_axis(quatToEuler, 1, self.boot_quat)
+        self.d_boot_euler_dt = np.apply_along_axis(deriv, 0, self.boot_euler)
 
 
     def identifyTurns(self=None):
@@ -184,9 +187,9 @@ class Tile:
         logger.info(f'Identifying key points of larger acceleration.')
         highG_els = zeroCrossingIdxsGTThInsideRanges(self.g_force.d_mG_lpf_dt, D_MG_LPF_DT_TH, self.downhill_idxs)
 
-        logger.info(f'Identifying turning kinematics based on large accelerations.')
+        logger.info(f'Computing the associated turning kinematics based on large accelerations.')
         self.turns = [
-            Turn(highG_els[idx], self.alt_lpf, self.g_force, self.boot_euler)
+            Turn(highG_els[idx], self.alt_lpf, self.g_force, self.boot_euler, self.d_boot_euler_dt)
             for idx in range(highG_els.shape[0])
         ]
 
@@ -345,13 +348,35 @@ class Tile:
     @property
     def boot_quat(self) -> np.ndarray:
         """Boot orientation quaternion [Nx4] (rotation) transformed from the sensor orientation and latest 
-        available static registration from lift peaks. Using the dof based orientation signals.
+        available static registration from lift peaks.
         """
-        return self.__boot_rot
+        return self.__boot_quat
     
     @boot_quat.setter
-    def boot_quat(self, boot_rot):
-        self.__boot_rot = boot_rot
+    def boot_quat(self, boot_quat):
+        self.__boot_quat = boot_quat
+
+
+    @property
+    def boot_euler(self) -> np.ndarray:
+        """Boot orientation euler [Nx3] (axis angles) transformed from the sensor orientation and latest 
+        available static registration from lift peaks.
+        """
+        return self.__boot_euler
+    
+    @boot_euler.setter
+    def boot_euler(self, boot_euler):
+        self.__boot_euler = boot_euler
+
+
+    @property
+    def d_boot_euler_dt(self) -> np.ndarray:
+        """Boot orientation euler derivative [Nx3]."""
+        return self.__d_boot_euler_dt
+    
+    @d_boot_euler_dt.setter
+    def d_boot_euler_dt(self, d_boot_euler_dt):
+        self.__d_boot_euler_dt = d_boot_euler_dt
 
 
     @property

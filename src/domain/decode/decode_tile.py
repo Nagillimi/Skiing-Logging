@@ -5,9 +5,9 @@ from utilities.decorators.print_tracks import printTracks
 
 
 @printTracks
-def decodeTile(file, header=''):
+def decodeTile(file):
     csv = pd.read_csv(file)
-    logger.info(f'Imported Tile data from csv, dimensions: {csv.size}')
+    logger.info(f'Imported Tile data from csv, rows: {csv.size}')
 
     return RawTile(
         time=csv.iloc[:, 0].to_numpy(),

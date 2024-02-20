@@ -1,5 +1,6 @@
 from io import TextIOWrapper
 from constants.jump_th import JUMP_THRESHOLD_MG
+from constants.turn_th import D_MG_LPF_DT_TH
 from domain.decode.decode_a50 import decodeA50
 from domain.decode.decode_f6p import decodeF6P
 from domain.decode.decode_tile import decodeTile
@@ -8,8 +9,10 @@ from models.tile import Tile
 from utilities.datafile import (
     constructJumpLine,
     constructSensorBootLines,
+    constructTurnLine,
     createJumpDataFile,
-    createSensorBootDataFile
+    createSensorBootDataFile,
+    createTurnDataFile
 )
 
 class Session:
@@ -23,11 +26,11 @@ class Session:
             import_non_tile=True,
     ) -> None:
         # init the device objects
-        self.raw_tile = decodeTile(tile_file, "Raw Tile")
+        self.raw_tile = decodeTile(tile_file)
         self.tile = Tile(raw=self.raw_tile, compute_kinematics=compute_kinematics)
 
         if a50_file is not None and import_non_tile is True:
-            self.a50 = decodeA50(a50_file, "A50")
+            self.a50 = decodeA50(a50_file)
             if offsets is None:
                 self.tile.identifyOffsets(self.a50)
             else:
@@ -35,10 +38,11 @@ class Session:
                 self.tile.applyTimestamp(self.a50[0].time[0])
 
         if f6p_file is not None and import_non_tile is True:
-            self.f6p = decodeF6P(f6p_file, "F6P")
+            self.f6p = decodeF6P(f6p_file)
 
         self.logJumpData()
-        # self.logTurnData()
+        self.logTurnData()
+        # self.logSensorBootOrientationData()
 
         logger.info('Done importing session.\n')
 
@@ -52,6 +56,12 @@ class Session:
 
     def logTurnData(self):
         logger.info('Generating turn training file.')
+        self.turn_train_file = createTurnDataFile(f'tile-{self.a50[0].date}-turns-{D_MG_LPF_DT_TH}d_mG_lpf_dt.csv')
+        self.turn_train_file.writelines([constructTurnLine(turn) for turn in self.tile.turns])
+        self.turn_train_file.close()
+
+
+    def logSensorBootOrientationData(self):
         self.euler_sensor_boot_file = createSensorBootDataFile(f'tile-{self.a50[0].date}-sensor-boot-frame.csv')
         self.euler_sensor_boot_file.write(constructSensorBootLines(self.tile))
         self.euler_sensor_boot_file.close()

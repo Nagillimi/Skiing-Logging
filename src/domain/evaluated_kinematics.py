@@ -1,4 +1,5 @@
 import numpy as np
+from domain.session_logger import SessionLogger as logger
 
 
 class EvaluatedKinematics:
@@ -18,6 +19,8 @@ class EvaluatedKinematics:
         self.total_tests = results.shape[0]
         self.confidence = self.tests_passed / self.total_tests * 100
     
+        logger.debug(f'Test results: {round(self.confidence, 2)}% ({self.tests_passed}/{self.total_tests} tests).')
+
 
     @property
     def confidence(self) -> float:

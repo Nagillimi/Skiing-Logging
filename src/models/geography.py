@@ -87,7 +87,7 @@ class Geography:
             latest_lift_bottom_idx = self.lift_bottom_search.search(min_idx=last_idx)
             if latest_lift_bottom_idx is None:
                 break
-            logger.debug(f'New geographical point identified | Lift bottom at idx: {latest_lift_bottom_idx}')
+            logger.debug(f'\tlift bottom at idx: {latest_lift_bottom_idx}')
             new_point = self.newGeographicalPoint('lb', latest_lift_bottom_idx)
             self.all_points.append(new_point)
             self.lift_bottoms.append(new_point)
@@ -96,7 +96,7 @@ class Geography:
             latest_lift_peak_idx = self.lift_peak_search.search(min_idx=latest_lift_bottom_idx)
             if latest_lift_peak_idx is None:
                 break
-            logger.debug(f'New geographical point identified | Lift peak at idx: {latest_lift_peak_idx}')
+            logger.debug(f'\tlift peak at idx: {latest_lift_peak_idx}')
             new_point = self.newGeographicalPoint('lp', latest_lift_peak_idx)
             self.all_points.append(new_point)
             self.lift_peaks.append(new_point)
@@ -105,7 +105,7 @@ class Geography:
             latest_run_peak_idx = self.run_peak_search.search(min_idx=latest_lift_peak_idx)
             if latest_run_peak_idx is None:
                 break
-            logger.debug(f'New geographical point identified | Run peak at idx: {latest_run_peak_idx}')
+            logger.debug(f'\trun peak at idx: {latest_run_peak_idx}')
             new_point = self.newGeographicalPoint('rp', latest_run_peak_idx)
             self.all_points.append(new_point)
             self.run_peaks.append(new_point)
@@ -114,18 +114,18 @@ class Geography:
             latest_run_bottom_idx = self.run_bottom_search.search(min_idx=latest_run_peak_idx)
             if latest_run_bottom_idx is None:
                 break
-            logger.debug(f'New geographical point identified | Run bottom at idx: {latest_run_bottom_idx}')
+            logger.debug(f'\trun bottom at idx: {latest_run_bottom_idx}')
             new_point = self.newGeographicalPoint('rb', latest_run_bottom_idx)
             self.all_points.append(new_point)
             self.run_bottoms.append(new_point)
 
             last_idx = latest_run_bottom_idx
 
-            logger.debug(f'Geographical identification finished.')
-            logger.debug(f'\tLift peaks: {len(self.lift_peaks)}')
-            logger.debug(f'\tLift bottoms: {len(self.lift_bottoms)}')
-            logger.debug(f'\tRun peaks: {len(self.run_peaks)}')
-            logger.debug(f'\tRun bottoms: {len(self.run_bottoms)}')
+        logger.debug(f'Geographical identification finished.')
+        logger.debug(f'\tLift peaks: {len(self.lift_peaks)}')
+        logger.debug(f'\tLift bottoms: {len(self.lift_bottoms)}')
+        logger.debug(f'\tRun peaks: {len(self.run_peaks)}')
+        logger.debug(f'\tRun bottoms: {len(self.run_bottoms)}')
 
 
     def patchFragmentedTracks(self):
@@ -147,12 +147,12 @@ class Geography:
                     fragments.append(self.lift_peaks.pop(self.run_bottoms.index(self.all_points[i])))
                     fragments.append(self.lift_peaks.pop(self.run_peaks.index(self.all_points[i + 1])))
 
-            logger.debug(f'Found and removed {len(fragments)} fragmented tracks.')
+            logger.debug(f'\tFound and removed {len(fragments)} fragmented tracks.')
 
             self.all_points = list(set(self.all_points).symmetric_difference(fragments))
             return
     
-        logger.debug(f'No fragmented tracks found.')
+        logger.debug(f'\tNo fragmented tracks found.')
                 
 
     @property

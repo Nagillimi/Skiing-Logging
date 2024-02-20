@@ -114,9 +114,9 @@ class Jump(EvaluatedKinematics):
         """
         logger.debug('Running test suite.')
         return np.array([
-            ST.testDecreasingTrend(self.mG_lpf, self.air_range, header='Test mG_lpf has decreasing trend'),
-            ST.testMinSampleCount(self.air_range, header='Test mG_lpf has minimum sample count'),
-            ST.testMinSampleCount(self.lowG_range, min_count=10, header='Test mG_lpf has minimum samples below lowG threshold'),
+            ST.testDecreasingTrend(self.mG_lpf, self.air_range, header='Test mG_lpf has decreasing trend during air range'),
+            ST.testMinSampleCount(self.air_range, min_count=30, header='Test air_range has minimum 30 sample count'),
+            ST.testMinSampleCount(self.lowG_range, min_count=10, header='Test lowG_range has minimum 10 samples below lowG threshold'),
             ST.testLowerSampleStdDev(self.mG, self.air_range, header='Test mG std dev (air time < pop)'),
             ST.testLowerSampleStdDev(self.gyro, self.air_range, header='Test gyro std dev (air time < pop)'),
             ST.testLowerSampleMean(self.mG, self.air_range, header='Test mG mean (air time < pop)'),
@@ -136,8 +136,9 @@ class Jump(EvaluatedKinematics):
     
     def identify(self):
         """Identifies the ranges of air time and landing"""
+        logger.debug('New jump identification.')
         self.computeMinIndex()
         self.computeAirPhase()
         self.computeLandingPhase()
-        self.test(self.testSuite, )
+        self.test(self.testSuite)
     
